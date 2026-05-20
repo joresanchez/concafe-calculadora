@@ -1,0 +1,28 @@
+# Archivos de desarrollo - NO van al servidor live
+# Hostinger pullea este repo y publica todo lo que este en main; estos quedan
+# fuera del tracking para que el deploy publique solo lo de produccion.
+
+# Harness y runner
+tests.html
+_verify-tests.js
+
+# Documentacion interna del proyecto (notas, planning, decisiones)
+RESUME-HERE.md
+CHANGES_REQUEST.md
+OPEN_QUESTIONS.md
+brief.md
+changelog.md
+REUNION-JESUS.md
+
+# Material fuente bruto (WhatsApp Jesus, transcripciones, prototipos Base44)
+cambios_mayo_2026/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

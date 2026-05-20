@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>HORECA Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#C9A961;--gold-dim:#b89a56;--gold-light:rgba(201,169,97,.12);
+  --dark:#101010;--carbon:#1A1A1A;--slate:#1B1D1F;--gun:#3D3D3D;
+  --plat:#EEEEEE;--snow:#FAFAFA;--white:#FFFFFF;
+  --green:#27AE60;--yellow:#E5A100;--red:#C0392B;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--snow);color:var(--dark);line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
+.wrap{max-width:680px;margin:0 auto;padding:0 12px 40px}
+
+/* Header — sin logo ni badge. Tipografia subida para compensar el espacio vacio. */
+.header{background:var(--dark);padding:32px 16px 28px;text-align:center;margin-bottom:16px;border-radius:0 0 16px 16px}
+.header img{height:8em;margin-bottom:6px}
+.header h1{color:var(--plat);font-size:1.45rem;font-weight:600;letter-spacing:.04em}
+.header h1 span{color:var(--gold)}
+.badge{display:inline-block;font-size:.65rem;font-weight:600;letter-spacing:.08em;color:var(--white);background:var(--red);padding:3px 12px;border-radius:20px;margin-top:8px;text-transform:uppercase}
+
+/* Bloques */
+.bloque{background:var(--white);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.04)}
+.bloque-title{font-size:.82rem;font-weight:600;color:var(--gun);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--gold);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.04em}
+.bloque-num{background:var(--gold);color:var(--white);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
+
+/* Bloque plegable (Bloque 8 financiero: cerrado por defecto para el cliente,
+   Carolina/Jesus pulsa el header para desplegar y editar). Usa <details>/<summary>
+   HTML nativo; sin JS. Los inputs siguen en el DOM con sus defaults, el motor los
+   lee con num() aunque esten ocultos. */
+.bloque-collapsible{padding:0}
+.bloque-collapsible > summary{font-size:.82rem;font-weight:600;color:var(--gun);padding:16px;margin:0;border-bottom:2px solid transparent;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;list-style:none;transition:border-color .2s,background .2s;border-radius:var(--radius)}
+.bloque-collapsible > summary::-webkit-details-marker{display:none}
+.bloque-collapsible > summary::marker{display:none}
+.bloque-collapsible > summary::after{content:"›";margin-left:auto;font-size:1.4rem;color:var(--gold);transition:transform .25s;font-weight:400;line-height:1}
+.bloque-collapsible[open] > summary{border-bottom-color:var(--gold);border-radius:var(--radius) var(--radius) 0 0}
+.bloque-collapsible[open] > summary::after{transform:rotate(90deg)}
+.bloque-collapsible > summary:hover{background:rgba(201,169,97,.04)}
+.bloque-collapsible .bloque-content{padding:14px 16px 16px}
+
+/* Grid */
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.row.triple{grid-template-columns:1fr 1fr 1fr}
+.field label{display:block;font-size:.72rem;color:var(--gun);margin-bottom:3px;font-weight:500}
+.field select,.field input{width:100%;padding:9px 10px;border:1px solid var(--plat);border-radius:7px;font-size:.85rem;font-family:'Inter',sans-serif;background:var(--white);color:var(--dark);transition:border-color .2s,box-shadow .2s}
+.field select:focus,.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-light)}
+.field input::placeholder{color:#bbb}
+.field .hint{font-size:.65rem;color:#aaa;margin-top:2px}
+
+/* Botón */
+.btn-calc{display:block;width:100%;padding:15px;background:var(--gold);color:var(--white);border:none;border-radius:var(--radius);font-family:'Poppins',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;margin:18px 0 8px;letter-spacing:.03em;text-transform:uppercase;transition:background .2s,transform .1s}
+.btn-calc:hover{background:var(--gold-dim)}
+.btn-calc:active{transform:scale(.985)}
+.field-hidden{display:none}
+
+/* T.7 Sub-bloque (agrupadores visuales dentro de un bloque) */
+.sub-bloque-title{font-size:.7rem;font-weight:600;color:var(--gun);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px dashed rgba(201,169,97,.35);text-transform:uppercase;letter-spacing:.05em}
+.sub-bloque-title:first-of-type{margin-top:4px}
+
+/* Checkboxes multi-select (tipos de leche, iluminacion, CAEs) */
+.checkbox-group{display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 0 2px}
+.checkbox-group label{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--dark);cursor:pointer;font-weight:400;margin-bottom:0}
+.checkbox-group input[type="checkbox"]{width:14px;height:14px;margin:0;cursor:pointer;accent-color:var(--gold)}
+
+/* Quad row (4 columnas, para desglose de grifos) */
+.row.quad{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px}
+@media(max-width:480px){.row.quad{grid-template-columns:1fr 1fr}}
+
+/* Error */
+.error-msg{background:#FFF0F0;border:1px solid var(--red);color:#7A2020;padding:10px 14px;border-radius:8px;font-size:.85rem;margin:10px 0;display:none}
+
+/* Output */
+#output{display:none;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.result-card{background:var(--dark);border-radius:14px;padding:24px 18px;margin-bottom:10px;color:var(--plat)}
+
+/* Semáforo */
+.semaforo{text-align:center;padding:0 0 16px}
+.sem-circle{width:72px;height:72px;border-radius:50%;margin:0 auto 10px;border:3px solid rgba(255,255,255,.1);transition:background .4s}
+.sem-verde{background:var(--green);box-shadow:0 0 24px rgba(39,174,96,.35)}
+.sem-amarillo{background:var(--yellow);box-shadow:0 0 24px rgba(229,161,0,.35)}
+.sem-rojo{background:var(--red);box-shadow:0 0 24px rgba(192,57,43,.35)}
+.sem-label{font-size:1rem;font-weight:600;letter-spacing:.02em}
+.sem-sub{font-size:.78rem;color:#888;margin-top:3px}
+
+/* Tabla resultado */
+.sep{height:1px;background:rgba(255,255,255,.08);margin:14px 0}
+.tabla-resultado{width:100%;border-collapse:collapse;margin:0}
+.tabla-resultado td{padding:11px 0;font-size:.88rem;border-bottom:1px solid rgba(255,255,255,.06)}
+.tabla-resultado tr:last-child td{border-bottom:none}
+.tabla-resultado .concepto{color:#aaa;font-weight:400}
+.tabla-resultado .importe{text-align:right;font-family:'Poppins',sans-serif;font-weight:600;font-size:1rem}
+.pos{color:var(--green)}
+.neg{color:var(--red)}
+.muted{color:#777}
+.rango{font-size:.68rem;color:#666;font-weight:400;display:block;margin-top:1px}
+.fila-neto td{padding:14px 0}
+.fila-neto .concepto{color:var(--white);font-weight:600}
+.fila-neto .importe{font-size:1.25rem}
+.fila-label{font-size:.65rem;color:#666;font-weight:400;display:block;margin-top:1px}
+.fila-soft .concepto,.fila-total .concepto{font-size:.82rem}
+
+/* Desglose */
+.desglose-btn{display:block;width:100%;text-align:center;padding:9px;background:none;border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#777;font-size:.78rem;cursor:pointer;margin-top:14px;transition:all .2s}
+.desglose-btn:hover{background:rgba(255,255,255,.04);color:var(--gold);border-color:var(--gold)}
+.desglose{display:none;margin-top:10px;padding:12px;background:rgba(255,255,255,.03);border-radius:8px;font-size:.78rem}
+.desglose.open{display:block}
+.desglose-line{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);color:#999}
+.desglose-line:last-child{border:none}
+.desglose-line.hard-total{border-top:1px solid rgba(255,255,255,.1);padding-top:8px;font-weight:600;color:var(--gold)}
+.desglose-line.soft{color:#666;font-style:italic}
+.desglose-line.grand{border-top:1px solid rgba(255,255,255,.1);padding-top:8px;font-weight:700;color:var(--plat)}
+
+/* Mensaje comercial */
+.msg-comercial{margin-top:14px;padding:12px 16px;border-radius:8px;font-size:.82rem;line-height:1.6}
+.msg-verde{background:rgba(39,174,96,.1);border-left:3px solid var(--green);color:#2ECC71}
+.msg-amarillo{background:rgba(229,161,0,.1);border-left:3px solid var(--yellow);color:#F0B429}
+.msg-rojo{background:rgba(192,57,43,.1);border-left:3px solid var(--red);color:#E74C3C}
+
+.btn-reset{display:block;width:100%;padding:11px;background:none;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#777;font-size:.82rem;cursor:pointer;margin-top:14px;transition:all .2s}
+.btn-reset:hover{border-color:var(--gold);color:var(--gold)}
+
+/* Responsive */
+@media(max-width:480px){
+  .row.triple{grid-template-columns:1fr 1fr}
+  .row.triple .field:last-child:nth-child(odd){grid-column:span 2}
+  .result-card{padding:20px 14px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- Header v3.0-alpha estetica (rebranding HORECA Manager 2026-05-20):
+     - Logo conCAFE eliminado (decision Jore: la herramienta deja de ser interna).
+     - Badge "Herramienta interna" eliminado (la calculadora se ensena al cliente).
+     - Titulo renombrado conCAFE -> HORECA Manager. -->
+<div class="header">
+  <h1><span>HORECA</span> Manager</h1>
+</div>
+
+<!-- BLOQUE 1 (era 0) — Datos generales del local. Renumerado en rebranding HORECA Manager. -->
+<div class="bloque">
+<div class="bloque-title"><span class="bloque-num">1</span>Datos generales del local</div>
+<div class="row">
+  <div class="field"><label>Forma legal del negocio</label><select id="forma_legal"><option value="">Seleccionar...</option><option value="autonomo">Autónomo</option><option value="sl">SL</option><option value="sa">SA</option><option value="slne">SLNE</option><option value="cooperativa">Cooperativa</option><option value="otra">Otra</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Régimen del local</label><select id="regimen_local" onchange="toggleContratoRestante()"><option value="">Seleccionar...</option><option value="alquiler">Alquiler</option><option value="propiedad">Propiedad</option></select></div>
+</div>
+<div class="row">
+  <div class="field" id="field_contrato_restante"><label>Años restantes de contrato (alquiler)</label><input type="number" id="contrato_restante" placeholder="Ej: 5" min="0" max="50"></div>
+  <div class="field"><label>Aforo del local (personas)</label><input type="number" id="aforo" placeholder="Ej: 40" min="0"></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Montacargas</label><select id="montacargas" onchange="toggleMontacargasKw()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Almacén</label><select id="almacen"><option value="no">No tiene</option><option value="interno">Interno</option><option value="externo">Externo</option><option value="ambos">Ambos</option></select></div>
+  <div class="field"><label>Tipo de contrato del local</label><select id="tipo_contrato_local"><option value="">Seleccionar...</option><option value="compraventa">Compraventa</option><option value="alquiler_estandar">Alquiler estándar</option><option value="traspaso">Traspaso</option><option value="otro">Otro</option></select></div>
+</div>
+<!-- 0.6 (v3.0 Hito C) — Montacargas detalle (kW + h/dia). Visible si montacargas=si. UI captura; motor: TODO Jesus Q5 (kW promedio). -->
+<div class="row field-hidden" id="row_montacargas_detalle">
+  <div class="field"><label>Montacargas - potencia (kW)</label><input type="number" id="montacargas_kw" placeholder="Ej: 5" step="0.1" min="0"></div>
+  <div class="field"><label>Montacargas - horas/día encendido</label><input type="number" id="montacargas_horas" placeholder="Ej: 2" step="0.5" min="0" max="24"></div>
+</div>
+</div>
+
+<!-- BLOQUE 2 (era A) — Datos del local. Renumerado.
+     Rebranding HORECA Manager 2026-05-20: cafes_dia, infusiones_dia, litros_leche_dia
+     y tipos de leche MOVIDOS al Bloque 5 (Cafe y volumen) para agrupar lo de
+     producto/insumos al final del formulario. Aqui quedan solo dias/horas,
+     personal, banos y fontaneria. -->
+<div class="bloque">
+<div class="bloque-title"><span class="bloque-num">2</span>Datos del local</div>
+<div class="row triple">
+  <div class="field"><label>Días abierto a la semana</label><select id="dias_semana" onchange="toggleDiasCerrados()"><option value="7">7 días</option><option value="6" selected>6 días</option><option value="5">5 días</option></select></div>
+  <div class="field" id="field_dias_cerrados"><label>Días cerrados</label><select id="dias_cerrados_tipo"><option value="consecutivos">Consecutivos</option><option value="sueltos">Sueltos</option></select></div>
+  <div class="field"><label>Horas abierto al día</label><input type="number" id="horas_dia" value="12" min="6" max="24"></div>
+</div>
+
+<!-- A.2-A.12 (v3.0 Hito A) — ampliaciones descriptivas, motor sin tocar -->
+<div class="sub-bloque-title">Personal y horario</div>
+<div class="row triple">
+  <div class="field"><label>Nº de empleados</label><input type="number" id="num_empleados" placeholder="Ej: 4" min="0"></div>
+  <div class="field"><label>Antigüedad media empleados (años)</label><input type="number" id="antig_empleados" placeholder="Ej: 3" min="0" step="0.5"></div>
+  <div class="field"><label>Horario de apertura</label><select id="horario_apertura"><option value="">Seleccionar...</option><option value="manana">Mañana</option><option value="partido">Partido</option><option value="continuo">Continuo</option><option value="tarde_noche">Tarde-noche</option></select></div>
+</div>
+<div class="row">
+  <div class="field"><label>Control horario</label><select id="control_horario"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Estado del local (subjetivo)</label><select id="estado_local"><option value="">Seleccionar...</option><option value="correcto">Correcto</option><option value="mejorable">Mejorable</option><option value="muy_mejorable">Muy mejorable</option></select></div>
+</div>
+<div class="row">
+  <div class="field"><label>Antigüedad del local (años)</label><input type="number" id="antig_local" placeholder="Ej: 12" min="0" step="1"></div>
+</div>
+
+<div class="sub-bloque-title">Baños y fontanería</div>
+<div class="row triple">
+  <div class="field"><label>Nº de baños (incl. personal)</label><input type="number" id="num_banos" placeholder="Ej: 2" min="0"></div>
+  <div class="field"><label>Nº de grifos total</label><input type="number" id="grifos_total" placeholder="Ej: 6" min="0"></div>
+  <div class="field"><label>Nº de cisternas</label><input type="number" id="num_cisternas" placeholder="Ej: 2" min="0"></div>
+</div>
+<div class="row quad">
+  <div class="field"><label>Grifos en baños</label><input type="number" id="grifos_banos" placeholder="0" min="0"></div>
+  <div class="field"><label>Grifos en cocina</label><input type="number" id="grifos_cocina" placeholder="0" min="0"></div>
+  <div class="field"><label>Grifos en office</label><input type="number" id="grifos_office" placeholder="0" min="0"></div>
+  <div class="field"><label>Grifos en barra</label><input type="number" id="grifos_barra" placeholder="0" min="0"></div>
+</div>
+</div>
+
+<!-- BLOQUE 3 (era D) — Energía e instalaciones. Renumerado y movido arriba (antes del bloque cafe). -->
+<div class="bloque">
+<div class="bloque-title"><span class="bloque-num">3</span>Energía e instalaciones</div>
+<div class="row triple">
+  <div class="field"><label>Instalación eléctrica</label><select id="elec_tipo"><option value="mono">Monofásica</option><option value="tri">Trifásica</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Antigüedad instalación</label><select id="elec_antiguedad"><option value="antigua">Antigua</option><option value="nueva">Nueva</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Precio luz (€/kWh)</label><input type="number" id="precio_kwh" value="0.28" step="0.01" min="0"><div class="hint">0,28 = media pyme</div></div>
+</div>
+<div class="row">
+  <!-- D.1 (v3.0 Hito A) — potencia contratada, UI sin motor -->
+  <div class="field"><label>Potencia contratada (kW)</label><input type="number" id="potencia_contratada" placeholder="Ej: 15" step="0.1" min="0"></div>
+  <!-- D.12 (v3.0 Hito B) — iluminacion multi-select.
+       Sustituye el <select> v2.5 (LED/Fluo/Halo/Mixta/NS). "Mixta" eliminada: se desambigua marcando 2-3 tipos.
+       Vacio = NS/NC (motor: fL=0, idem 'led'). Wrapper calcular() arma array `iluminacion_multi`. -->
+  <div class="field"><label>Tipo iluminación</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="iluminacion_led"> LED</label>
+      <label><input type="checkbox" id="iluminacion_fluorescente"> Fluorescente</label>
+      <label><input type="checkbox" id="iluminacion_halogena"> Halógena</label>
+    </div>
+    <div class="hint">Marca los tipos presentes; sin marcar = NS / NC</div>
+  </div>
+</div>
+<div class="row">
+  <div class="field"><label>Tipo climatización</label><select id="climatizacion"><option value="bomba">Bomba de calor</option><option value="ac_antiguo">AC antiguo</option><option value="sin">Sin climatización</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+
+<!-- T.7 (v3.0 Hito A + Hito C) — agrupador visual "Refrigeración (cámaras)" -->
+<!-- v2.5: camaras_conserv + camaras_congel (motor activo). -->
+<!-- v3.0 Hito C: + botelleros/mesas frias/congeladores/neveras/abatidor en paralelo, motor con huecos (TODO Jesus Q5). -->
+<div class="sub-bloque-title">Refrigeración (cámaras)</div>
+<div class="row">
+  <div class="field"><label>Cámaras de conservación</label><input type="number" id="camaras_conserv" value="1" min="0" max="10"><div class="hint">0 si no sabe (motor v2.5 activo)</div></div>
+  <div class="field"><label>Cámaras de congelación</label><input type="number" id="camaras_congel" value="0" min="0" max="10"><div class="hint">0 si no sabe (motor v2.5 activo)</div></div>
+</div>
+
+<!-- D.3 (v3.0 Hito C) — Frio detallado por categoria. UI captura n+kW+h/dia; motor: TODO Jesus Q5 (kW promedio por categoria). -->
+<div class="row triple">
+  <div class="field"><label>Botelleros (nº)</label><input type="number" id="botelleros_n" placeholder="0" min="0"></div>
+  <div class="field"><label>Botelleros (kW)</label><input type="number" id="botelleros_kw" placeholder="Ej: 0,3" step="0.1" min="0"></div>
+  <div class="field"><label>Botelleros (h/día)</label><input type="number" id="botelleros_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Mesas frías (nº)</label><input type="number" id="mesas_frias_n" placeholder="0" min="0"></div>
+  <div class="field"><label>Mesas frías (kW)</label><input type="number" id="mesas_frias_kw" placeholder="Ej: 0,4" step="0.1" min="0"></div>
+  <div class="field"><label>Mesas frías (h/día)</label><input type="number" id="mesas_frias_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Congeladores (nº)</label><input type="number" id="congeladores_n" placeholder="0" min="0"></div>
+  <div class="field"><label>Congeladores (kW)</label><input type="number" id="congeladores_kw" placeholder="Ej: 0,5" step="0.1" min="0"></div>
+  <div class="field"><label>Congeladores (h/día)</label><input type="number" id="congeladores_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Neveras (nº)</label><input type="number" id="neveras_n" placeholder="0" min="0"></div>
+  <div class="field"><label>Neveras (kW)</label><input type="number" id="neveras_kw" placeholder="Ej: 0,3" step="0.1" min="0"></div>
+  <div class="field"><label>Neveras (h/día)</label><input type="number" id="neveras_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
+</div>
+
+<!-- D.5 (v3.0 Hito C) — Abatidor (ultracongelador). Condicional a abatidor=si. -->
+<div class="row">
+  <div class="field"><label>Abatidor de temperatura</label><select id="abatidor" onchange="toggleAbatidor()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+<div class="row triple field-hidden" id="row_abatidor_detalle">
+  <div class="field"><label>Abatidor (nº)</label><input type="number" id="abatidor_n" placeholder="Ej: 1" min="0"></div>
+  <div class="field"><label>Abatidor (kW)</label><input type="number" id="abatidor_kw" placeholder="Ej: 2" step="0.1" min="0"></div>
+  <div class="field"><label>Abatidor (h/día)</label><input type="number" id="abatidor_h" placeholder="Ej: 4" step="0.5" min="0" max="24"></div>
+</div>
+
+<!-- T.6 + D.13 (v3.0 Hito C) — Bandera CAEs refrigeración. Motor: TODO Jesus Q5. -->
+<div class="row">
+  <div class="field"><label>Bonificación CAEs (refrigeración)</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="caes_frio"> Algún equipo de refrigeración ≤ 3 años con CAEs aplicados / aplicables</label>
+    </div>
+  </div>
+</div>
+
+<!-- D.6-D.9 (v3.0 Hito C) — Cocina detallada. Sub-bloque NUEVO. Motor: TODO Jesus Q5 (consumo por fuego, freidora, equipo gas). -->
+<div class="sub-bloque-title">Cocina</div>
+<div class="row triple">
+  <div class="field"><label>Nº fuegos</label><input type="number" id="cocina_fuegos" placeholder="Ej: 4" min="0"></div>
+  <div class="field"><label>Tipo de cocina</label><select id="cocina_tipo" onchange="toggleCocinaGas()"><option value="">Seleccionar...</option><option value="gas">Gas</option><option value="electrica">Eléctrica</option><option value="mixta">Mixta</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Nº freidoras</label><input type="number" id="cocina_freidoras_n" placeholder="0" min="0"></div>
+</div>
+<div class="row field-hidden" id="row_cocina_gas">
+  <div class="field"><label>Equipos a gas (nº)</label><input type="number" id="cocina_gas_equipos" placeholder="Ej: 2" min="0"></div>
+  <div class="field"><label>Consumo gas (kWh/día o m³/día)</label><input type="number" id="cocina_gas_consumo" placeholder="Ej: 10" step="0.5" min="0"><div class="hint">Si lo conoce; vacío = NS</div></div>
+</div>
+<div class="row">
+  <div class="field"><label>Bonificación CAEs (cocina)</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="caes_cocina"> Algún equipo de cocina ≤ 3 años con CAEs aplicados / aplicables</label>
+    </div>
+  </div>
+</div>
+
+<!-- D.14 + D.15 (v3.0 Hito C) — Salamandra y Mesas calientes. Q6 cerrada: incluir como huecos hasta Q5. -->
+<div class="sub-bloque-title">Otros aparatos eléctricos</div>
+<div class="row">
+  <div class="field"><label>Salamandra (horno superior)</label><select id="salamandra" onchange="toggleSalamandra()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Mesas calientes</label><select id="mesas_calientes" onchange="toggleMesasCalientes()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+<div class="row triple field-hidden" id="row_salamandra_detalle">
+  <div class="field"><label>Salamandra (nº)</label><input type="number" id="salamandra_n" placeholder="Ej: 1" min="0"></div>
+  <div class="field"><label>Salamandra (kW)</label><input type="number" id="salamandra_kw" placeholder="Ej: 3" step="0.1" min="0"></div>
+  <div class="field"><label>Salamandra (h/día)</label><input type="number" id="salamandra_h" placeholder="Ej: 2" step="0.5" min="0" max="24"></div>
+</div>
+<div class="row triple field-hidden" id="row_mesas_calientes_detalle">
+  <div class="field"><label>Mesas calientes (nº)</label><input type="number" id="mesas_calientes_n" placeholder="Ej: 1" min="0"></div>
+  <div class="field"><label>Mesas calientes (kW)</label><input type="number" id="mesas_calientes_kw" placeholder="Ej: 1,5" step="0.1" min="0"></div>
+  <div class="field"><label>Mesas calientes (h/día)</label><input type="number" id="mesas_calientes_h" placeholder="Ej: 4" step="0.5" min="0" max="24"></div>
+</div>
+
+<div class="sub-bloque-title">Lavado y agua</div>
+<div class="row triple">
+  <div class="field"><label>Lavaplatos (cocina)</label><select id="lavaplatos"><option value="cupula">Cúpula</option><option value="bajo">Bajomostrador</option><option value="lavavasos">Lavavasos</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select><div class="hint">Motor v2.5 activo. Opción 'Lavavasos' se mantiene hasta Paso 6.</div></div>
+  <div class="field"><label>Máquina de hielo</label><select id="maq_hielo"><option value="antigua">Antigua</option><option value="nueva">Nueva</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Perlizadores</label><select id="perlizadores"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+
+<!-- D.11 (v3.0 Hito C) — Lavavasos de barra como campo independiente. Lavaplatos v2.5 intacto en motor. -->
+<div class="row">
+  <div class="field"><label>Lavavasos (barra)</label><select id="lavavasos" onchange="toggleLavavasos()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+<div class="row triple field-hidden" id="row_lavavasos_detalle">
+  <div class="field"><label>Lavavasos (nº)</label><input type="number" id="lavavasos_n" placeholder="Ej: 1" min="0"></div>
+  <div class="field"><label>Lavavasos (kW)</label><input type="number" id="lavavasos_kw" placeholder="Ej: 2" step="0.1" min="0"></div>
+  <div class="field"><label>Lavavasos (h/día)</label><input type="number" id="lavavasos_h" placeholder="Ej: 8" step="0.5" min="0" max="24"></div>
+</div>
+
+<div class="row">
+  <!-- D.10 (v3.0 Hito A) — tratamiento agua ampliado. -->
+  <!-- value="no" mantiene compatibilidad con motor v2.5 (eAnti=0.50 solo si === 'no'). -->
+  <!-- osmosis/otro = motor los trata como "no es 'no'" -> no aplica eAnti (idem que el "si" anterior). -->
+  <div class="field"><label>Tratamiento del agua</label><select id="tratamiento_agua"><option value="no">No tiene</option><option value="osmosis">Ósmosis</option><option value="otro">Otro</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+</div>
+
+<!-- BLOQUE 4 (era E) — Gestión y personal. Renumerado. -->
+<div class="bloque">
+<div class="bloque-title"><span class="bloque-num">4</span>Gestión y personal</div>
+<!-- C.1 (v3.0 Hito B) — `comandas` movido al Bloque 7 (Operativa de producto). E.3 cumplido. -->
+<div class="row triple">
+  <div class="field"><label>Manual de operaciones</label><select id="manual_ops"><option value="no">No hay</option><option value="si_no">Sí hay, pero no se cumple</option><option value="si_si">Sí hay y se cumple</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Mantenimiento preventivo</label><select id="mant_preventivo"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Rotación del personal</label><select id="rotacion"><option value="alta">Alta (&gt;2/año)</option><option value="media">Media (1-2)</option><option value="baja">Baja (&lt;1)</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+
+<!-- E.1 y E.2 (v3.0 Hito A) — seguridad fisica del local, UI sin motor -->
+<div class="sub-bloque-title">Seguridad del local</div>
+<div class="row triple">
+  <div class="field"><label>Cámaras de vigilancia</label><select id="camaras_vigilancia" onchange="toggleNumCamarasVig()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field" id="field_num_camaras_vig"><label>Nº de cámaras de vigilancia</label><input type="number" id="num_camaras_vig" placeholder="Ej: 4" min="0"></div>
+  <div class="field"><label>Alarma de seguridad</label><select id="alarma"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+</div>
+
+<!-- BLOQUE 5 NUEVO — Café y volumen.
+     Rebranding HORECA Manager 2026-05-20: agrupa cafes_dia, infusiones_dia,
+     litros_leche_dia y tipos de leche (sacados del antiguo Bloque A) en una
+     seccion dedicada al producto/insumos, por debajo de los bloques generales
+     del local. Sigue activa la estimacion T.4 (Hito F): si cafes_dia <=0 y
+     litros_leche_dia > 0, el wrapper estima cafes_dia = round(litros / 9 * 110).
+     Hint dinamico `hint_cafes_dia` se actualiza al calcular. -->
+<div class="bloque">
+<div class="bloque-title"><span class="bloque-num">5</span>Café y volumen</div>
+<div class="row">
+  <div class="field"><label>Litros de leche/día</label><input type="number" id="litros_leche_dia" placeholder="Ej: 12" step="0.5" min="0"><div class="hint">Si lo sabe por semana, dividir entre 7</div></div>
+  <div class="field"><label>Infusiones al día</label><input type="number" id="infusiones_dia" placeholder="Ej: 30" min="0" value="0"></div>
+</div>
+<div class="row">
+  <div class="field"><label>Cafés al día *</label><input type="number" id="cafes_dia" placeholder="Ej: 150" min="0"><div class="hint" id="hint_cafes_dia">Si lo dejas vacío, lo estimamos desde los litros de leche/día</div></div>
+  <div class="field"><label>Tipos de leche que usa</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="leche_entera" value="entera"> Entera</label>
+      <label><input type="checkbox" id="leche_semi" value="semi"> Semi</label>
+      <label><input type="checkbox" id="leche_desnatada" value="desnatada"> Desnatada</label>
+      <label><input type="checkbox" id="leche_sin_lactosa" value="sin_lactosa"> Sin lactosa</label>
+      <label><input type="checkbox" id="leche_vegetales" value="vegetales"> Vegetales</label>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- BLOQUE 6 (era B) — Maquinaria de café. Renumerado y movido al final con el resto de cafe/insumos/operativa. -->
+<div class="bloque">
+<div class="bloque-title"><span class="bloque-num">6</span>Maquinaria de café</div>
+<div class="row">
+  <div class="field"><label>Modelo de adquisición</label><select id="modelo_adq"><option value="cesion">Cesión</option><option value="propia">Propia</option><option value="renting">Renting</option></select></div>
+  <div class="field"><label>Precio café actual (€/kg)</label><input type="number" id="precio_cafe" placeholder="Ej: 28" step="0.5" min="0"><div class="hint">Vacío = cesión 28€, propia 21€</div></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Tipo de máquina</label><select id="tipo_maquina"><option value="compacta">1 Grupo (Compacta)</option><option value="2g" selected>2 Grupos</option><option value="3g">3 Grupos</option><option value="multi">Multiboiler</option></select></div>
+  <div class="field"><label>Nº de máquinas</label><input type="number" id="num_maquinas" value="1" min="1" max="5"></div>
+  <div class="field"><label>Antigüedad de máquina</label><select id="antiguedad_maq" onchange="toggleCaesMaqCafe()"><option value="10">&gt;10 años</option><option value="7">5-10 años</option><option value="3" selected>2-5 años</option><option value="1">&lt;2 años</option></select></div>
+</div>
+<div class="row">
+  <div class="field"><label>Aislamiento de la caldera</label><select id="aislamiento"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+<!-- B.3 (v3.0 Hito C) — Bandera CAEs maquina cafe. Visible si antiguedad <= 3 anios. Motor: TODO Jesus Q5 (coef CAEs). -->
+<div class="row" id="row_caes_maq_cafe">
+  <div class="field"><label>Bonificación CAEs (máquina café)</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="caes_maq_cafe"> Máquina ≤ 3 años con CAEs aplicados / aplicables</label>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- BLOQUE 7 (era C) — Operativa de producto. Renumerado y movido al final. -->
+<div class="bloque">
+<div class="bloque-title"><span class="bloque-num">7</span>Operativa de producto</div>
+<div class="row">
+  <div class="field"><label>Técnica de leche</label><select id="tecnica_leche"><option value="calienta">Calienta / Hierve</option><option value="texturiza">Texturiza</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Dosificación del café</label><select id="dosificacion"><option value="ojo">A ojo</option><option value="pesado">Pesado / Calibrado</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+<div class="row">
+  <div class="field"><label>Servicio de azúcar</label><select id="azucar"><option value="libre">Barra libre</option><option value="controlado">Controlado</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Jarabes / Chai</label><select id="insourcing"><option value="compra">Compra todo hecho</option><option value="hace">Hace casero</option><option value="mixto">Mixto</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Compras de emergencia</label><select id="compras_ext"><option value="nunca">Nunca</option><option value="aveces">A veces</option><option value="frecuente">Frecuente</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Tamper automático</label><select id="tamper_auto"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+  <div class="field"><label>Espumador automático</label><select id="espumador_auto"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
+</div>
+<!-- C.1 (v3.0 Hito B) — comandas movido desde Bloque 4 + ampliado a 4 opciones. -->
+<!-- Wrapper calcular() mapea al vocabulario v2.5: digital->'si', papel->'no', voz->'no' (TODO Jesus Q5-N), nosabe->'nosabe'. -->
+<div class="row">
+  <div class="field"><label>Sistema de comandas</label><select id="comandas"><option value="digital">Digital (app/tablet)</option><option value="voz">Por voz</option><option value="papel">Papel</option><option value="nosabe">NS / NC</option></select><div class="hint">Cómo registra el camarero los pedidos del cliente</div></div>
+</div>
+</div>
+
+<!-- BLOQUE 8 (era F) — Configuracion financiera. Renumerado + plegable.
+     Rebranding HORECA Manager: <details> cerrado por defecto. El cliente final
+     no ve los inputs (honorarios, coste maquina, plazo y coef de renting); el
+     comercial pulsa el header para desplegar y editar antes de calcular.
+     Los inputs siguen en el DOM con sus defaults (10000/7000/60/2.1) aunque
+     esten ocultos: el motor los lee normal via num('honorarios') etc. Si el
+     comercial nunca despliega el bloque, la calculadora corre con los defaults
+     sin cambios funcionales. -->
+<details class="bloque bloque-collapsible">
+<summary class="bloque-title"><span class="bloque-num">8</span>Configuración financiera</summary>
+<div class="bloque-content">
+<div class="row">
+  <div class="field"><label>Honorarios consultoría (€)</label><input type="number" id="honorarios" value="10000" step="500" min="0"><div class="hint">0 = sin honorarios</div></div>
+  <div class="field"><label>Coste máquina nueva (€)</label><input type="number" id="coste_maquina" value="7000" step="500" min="0"></div>
+</div>
+<div class="row">
+  <div class="field"><label>Plazo del renting (meses)</label><input type="number" id="plazo_renting" value="60" min="12" max="120"></div>
+  <div class="field"><label>Coeficiente del renting (%)</label><input type="number" id="coef_renting" value="2.1" step="0.1" min="0"><div class="hint">2,1% estándar</div></div>
+</div>
+</div>
+</details>
+
+<div class="error-msg" id="error-msg"></div>
+<button class="btn-calc" onclick="calcular()">Calcular la rentabilidad</button>
+
+<!-- OUTPUT (CUIDADO AL TOCAR) -->
+<div id="output">
+<div class="result-card">
+  <div class="semaforo">
+    <div class="sem-circle" id="sem-circle"></div>
+    <div class="sem-label" id="sem-label"></div>
+    <div class="sem-sub" id="sem-sub"></div>
+  </div>
+  <div class="sep"></div>
+  <div style="text-align:center;font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:500;color:#888;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Estimación</div>
+  <table class="tabla-resultado">
+    <tr><td class="concepto">Ahorro<span class="fila-label">Energía + insumos + operativo demostrable</span></td><td class="importe pos" id="out-hard"></td></tr>
+    <tr><td class="concepto">Cuota del proyecto</td><td class="importe neg" id="out-cuota"></td></tr>
+    <tr class="fila-neto"><td class="concepto">Beneficio neto<span class="fila-label">Cubierto por garantía (Cláusula 8)</span></td><td class="importe" id="out-neto"></td></tr>
+    <tr class="fila-soft"><td class="concepto">Ahorro potencial<span class="fila-label">Rotación, averías, velocidad — no garantizado</span></td><td class="importe muted" id="out-soft"></td></tr>
+    <tr class="fila-total"><td class="concepto">Potencial total</td><td class="importe" id="out-total"></td></tr>
+  </table>
+  <button class="desglose-btn" onclick="toggleDesglose()">Ver desglose por bloques</button>
+  <div class="desglose" id="desglose"></div>
+  <div id="msg-comercial" class="msg-comercial"></div>
+  <button class="btn-reset" onclick="resetear()">Nueva consulta</button>
+</div>
+</div>
+
+</div>
+
+<script src="calculadora-core.js"></script>
+<script>
+/* index.html v2.5 + refactor 2026-05-20 (v3.0 Paso 1).
+ * El motor de cálculo vive en calculadora-core.js como `calcularPuro(inputs)`.
+ * Esta función `calcular()` es solo un wrapper: lee del DOM, invoca el motor,
+ * y escribe el resultado al DOM. La lógica matemática no se ha tocado.
+ *
+ * Rebranding HORECA Manager 2026-05-20: header, orden de bloques y numeracion
+ * (1-8) cambiados, pero los IDs leidos aqui son los mismos. El wrapper no se
+ * entera del reordenamiento visual porque `getElementById` no depende de
+ * orden DOM.
+ */
+function val(id){return document.getElementById(id).value}
+function num(id){return parseFloat(document.getElementById(id).value)||0}
+function fmt(n){return Math.round(n).toLocaleString('es-ES')+' €'}
+
+function calcular(){
+const errorEl=document.getElementById('error-msg');
+errorEl.style.display='none';
+document.getElementById('output').style.display='none';
+
+// C.1 (v3.0 Hito B) — comandas 4-way -> mapeo a vocabulario v2.5 (decision Jore 2026-05-20).
+// El motor calculadora-core.js sigue intacto: lee 'si'/'no'/'nosabe' como antes.
+//   digital -> 'si'     (ya optimizado, 0 ahorro de oD)
+//   papel   -> 'no'     (ahorro v2.5: 150 EUR/anio si <=100 cafes/dia, 300 si mas)
+//   voz     -> 'no'     (provisional, TODO Jesus Q5-N: confirmar si voz rinde menos que papel)
+//   nosabe  -> 'nosabe' (0 ahorro)
+const _cm=val('comandas');
+const comandasMotor=_cm==='digital'?'si':_cm==='papel'?'no':_cm==='voz'?'no':'nosabe';
+
+// T.4 (v3.0 Hito F) — estimacion cafes_dia desde litros_leche_dia (Q1 cerrada: motor sigue usando cafes_dia donde toca).
+// Ratio: 9L leche ≈ 1 kg cafe ≈ 110 cafes (Q5 puede afinar el 110 con Jesus en proxima reunion; no bloqueante, arrancamos con 110).
+// Guarda estricta:
+//   * cafes_dia con valor positivo (ej. 150 directo, goldens #12/#13/#14): ignoramos litros_leche, motor recibe el valor del usuario.
+//   * cafes_dia vacio/0 + litros_leche=0 (casos #1/#2/#3 del harness): NO estimamos, motor devuelve error 'Introduce al menos 1 cafe' como en v2.5.
+//   * cafes_dia vacio/0 + litros_leche>0 (caso #20 nuevo): estimamos cafes_dia = round(litros / 9 × 110).
+// num() devuelve 0 para vacio/NaN/negativo, asi que la guarda `cafesUsuario<=0` captura los tres casos sin disparar estimacion si litros_leche tambien es 0.
+const _litrosLeche=num('litros_leche_dia');
+const _cafesUsuario=num('cafes_dia');
+let cafesDiaFinal=_cafesUsuario;
+let _estimando=false;
+if(_cafesUsuario<=0&&_litrosLeche>0){
+  cafesDiaFinal=Math.round(_litrosLeche/9*110);
+  _estimando=true;
+}
+// Hint dinamico: oro cuando estimamos, neutro cuando no. Actualiza despues de cada calculo.
+const _hintEl=document.getElementById('hint_cafes_dia');
+if(_hintEl){
+  if(_estimando){
+    _hintEl.textContent='Estimado desde '+_litrosLeche+' L de leche/día → '+cafesDiaFinal+' cafés';
+    _hintEl.style.color='var(--gold)';
+  }else{
+    _hintEl.textContent='Si lo dejas vacío, lo estimamos desde los litros de leche/día';
+    _hintEl.style.color='';
+  }
+}
+
+const inputs={
+  cafes_dia:cafesDiaFinal,
+  infusiones_dia:num('infusiones_dia'),
+  dias_semana:num('dias_semana'),
+  dias_cerrados_tipo:val('dias_cerrados_tipo'),
+  horas_dia:num('horas_dia'),
+  modelo_adq:val('modelo_adq'),
+  precio_cafe:num('precio_cafe'),
+  tipo_maquina:val('tipo_maquina'),
+  num_maquinas:num('num_maquinas'),
+  antiguedad_maq:num('antiguedad_maq'),
+  aislamiento:val('aislamiento'),
+  tecnica_leche:val('tecnica_leche'),
+  dosificacion:val('dosificacion'),
+  azucar:val('azucar'),
+  insourcing:val('insourcing'),
+  compras_ext:val('compras_ext'),
+  tamper_auto:val('tamper_auto'),
+  espumador_auto:val('espumador_auto'),
+  elec_tipo:val('elec_tipo'),
+  elec_antiguedad:val('elec_antiguedad'),
+  precio_kwh:num('precio_kwh'),
+  // D.12 (v3.0 Hito B) — iluminacion multi-select. Wrapper arma array desde 3 checkboxes.
+  // Vacio (ninguno marcado) = NS/NC, motor calcula fL=0 (equivalente a LED, regla v2.5).
+  iluminacion_multi:['led','fluorescente','halogena'].filter(function(t){return document.getElementById('iluminacion_'+t).checked}),
+  climatizacion:val('climatizacion'),
+  camaras_conserv:num('camaras_conserv'),
+  camaras_congel:num('camaras_congel'),
+  lavaplatos:val('lavaplatos'),
+  maq_hielo:val('maq_hielo'),
+  perlizadores:val('perlizadores'),
+  tratamiento_agua:val('tratamiento_agua'),
+  manual_ops:val('manual_ops'),
+  comandas:comandasMotor,
+  mant_preventivo:val('mant_preventivo'),
+  rotacion:val('rotacion'),
+  honorarios:num('honorarios'),
+  coste_maquina:num('coste_maquina'),
+  plazo_renting:num('plazo_renting'),
+  coef_renting:num('coef_renting')
+};
+
+const r=calcularPuro(inputs);
+if(!r.ok){
+  errorEl.textContent=r.error;
+  errorEl.style.display='block';
+  errorEl.scrollIntoView({behavior:'smooth'});
+  return;
+}
+
+const el=id=>document.getElementById(id);
+el('output').style.display='block';
+el('sem-circle').className='sem-circle '+r.color;
+el('sem-label').textContent=r.label;
+el('sem-label').style.color=r.color==='sem-verde'?'var(--green)':(r.color==='sem-amarillo'?'var(--yellow)':'var(--red)');
+el('sem-sub').textContent=r.sub2;
+el('out-hard').innerHTML=`+${fmt(Math.round(r.hM))} <span class="rango">/ mes (${fmt(r.hMin)} - ${fmt(r.hMax)})</span>`;
+el('out-cuota').innerHTML=`-${fmt(Math.round(r.cuota))} <span class="rango">/ mes (${r.plazoRenting}m)</span>`;
+el('out-neto').innerHTML=`${r.nH>=0?'+':''}${fmt(Math.round(r.nH))} <span class="rango">/ mes</span>`;
+el('out-neto').className='importe '+(r.nH>=0?'pos':'neg');
+el('out-soft').innerHTML=`+${fmt(Math.round(r.sM))} <span class="rango">/ mes</span>`;
+el('out-total').innerHTML=`${r.nT>=0?'+':''}${fmt(Math.round(r.nT))} <span class="rango">/ mes</span>`;
+el('out-total').className='importe '+(r.nT>=0?'pos':'neg');
+
+el('desglose').className='desglose';
+el('desglose').innerHTML=`
+<div class="desglose-line"><span>Financiero</span><span>${fmt(Math.round(r.fin))}/año</span></div>
+<div class="desglose-line"><span>Energía</span><span>${fmt(Math.round(r.ENERGIA))}/año</span></div>
+<div class="desglose-line"><span>Insumos</span><span>${fmt(Math.round(r.INSUMOS))}/año</span></div>
+<div class="desglose-line"><span>Operativo</span><span>${fmt(Math.round(r.oF+r.oD))}/año</span></div>
+<div class="desglose-line hard-total"><span>Total ahorros directos</span><span>${fmt(Math.round(r.HARD))}/año</span></div>
+<div class="desglose-line soft"><span>Ahorros indirectos</span><span>${fmt(Math.round(r.SOFT))}/año</span></div>
+<div class="desglose-line grand"><span>Impacto total</span><span>${fmt(Math.round(r.HARD+r.SOFT))}/año</span></div>`;
+
+el('msg-comercial').className='msg-comercial '+r.mc;
+el('msg-comercial').textContent=r.msg;
+el('output').scrollIntoView({behavior:'smooth'});
+}
+
+function toggleDesglose(){document.getElementById('desglose').classList.toggle('open')}
+function resetear(){document.getElementById('output').style.display='none';document.getElementById('error-msg').style.display='none';window.scrollTo({top:0,behavior:'smooth'})}
+function toggleDiasCerrados(){const f=document.getElementById('field_dias_cerrados');const v=document.getElementById('dias_semana').value;f.classList.toggle('field-hidden',v==='7')}
+/* v3.0 Hito A — handlers UI condicionales, no afectan al motor */
+function toggleContratoRestante(){const f=document.getElementById('field_contrato_restante');const v=document.getElementById('regimen_local').value;f.classList.toggle('field-hidden',v!=='alquiler')}
+function toggleNumCamarasVig(){const f=document.getElementById('field_num_camaras_vig');const v=document.getElementById('camaras_vigilancia').value;f.classList.toggle('field-hidden',v!=='si')}
+/* v3.0 Hito C — handlers UI condicionales para campos de motor con hueco (TODO Jesus Q5) */
+function toggleMontacargasKw(){const f=document.getElementById('row_montacargas_detalle');const v=document.getElementById('montacargas').value;f.classList.toggle('field-hidden',v!=='si')}
+function toggleCaesMaqCafe(){const f=document.getElementById('row_caes_maq_cafe');const v=document.getElementById('antiguedad_maq').value;f.classList.toggle('field-hidden',!(v==='1'||v==='3'))}
+function toggleAbatidor(){const f=document.getElementById('row_abatidor_detalle');const v=document.getElementById('abatidor').value;f.classList.toggle('field-hidden',v!=='si')}
+function toggleSalamandra(){const f=document.getElementById('row_salamandra_detalle');const v=document.getElementById('salamandra').value;f.classList.toggle('field-hidden',v!=='si')}
+function toggleMesasCalientes(){const f=document.getElementById('row_mesas_calientes_detalle');const v=document.getElementById('mesas_calientes').value;f.classList.toggle('field-hidden',v!=='si')}
+function toggleCocinaGas(){const f=document.getElementById('row_cocina_gas');const v=document.getElementById('cocina_tipo').value;f.classList.toggle('field-hidden',!(v==='gas'||v==='mixta'))}
+function toggleLavavasos(){const f=document.getElementById('row_lavavasos_detalle');const v=document.getElementById('lavavasos').value;f.classList.toggle('field-hidden',v!=='si')}
+toggleDiasCerrados();
+toggleContratoRestante();
+toggleNumCamarasVig();
+toggleMontacargasKw();
+toggleCaesMaqCafe();
+toggleAbatidor();
+toggleSalamandra();
+toggleMesasCalientes();
+toggleCocinaGas();
+toggleLavavasos();
+</script>
+</body>
+</html>
