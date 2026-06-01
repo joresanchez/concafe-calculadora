@@ -100,7 +100,39 @@
       eMaq -= (7 - diasSem) * 52 * 2 * precioKwh * numMaq;
       eMaq = Math.max(0, eMaq);
     }
-    let eAisl = (aislamiento === 'no' || aislamiento === 'nosabe') ? 1.0 * numMaq * diasOp : 0;
+    // === eAisl refactor a kWh × precio_kWh (v3.0-gamma M9, 2026-06-01) ===
+    // Antes: 1.0 EUR/dia × numMaq × diasOp (fijo, sin sensibilidad al precio_kWh).
+    // Ahora: 1/0.28 = 3.5714 kWh/dia × numMaq × diasOp × precio_kWh.
+    // A 0.28 EUR/kWh el resultado es identico (no rompe goldens). Si el cliente
+    // cambia precio_kWh, el ahorro se ajusta linealmente como pidio Jesus.
+    const KWH_AISL_DIA = 1.0 / 0.28;  // 3.5714 kWh/dia
+    let eAisl = (aislamiento === 'no' || aislamiento === 'nosabe') ? KWH_AISL_DIA * numMaq * diasOp * precioKwh : 0;
+    // === eApagado (v3.0-gamma M8, §2.6 Apagado nocturno + chaqueta termica) ===
+    // Dos medidas independientes con cifras del doc Jesus + plan §2.6:
+    //   1. Apagado nocturno (instalar temporizador ~20 EUR): si la maquina queda
+    //      encendida 24h y el local cierra >=10h/dia, ahorrar el consumo nocturno
+    //      = kN[tipoMaq] × horas_cerrado/24 × numMaq × diasOp × precio_kWh.
+    //   2. Chaqueta termica en la caldera (10-15 EUR): reduce 22% del consumo en
+    //      horas activas. Si ademas se apaga, las "horas activas" son horasDia;
+    //      si no se apaga, son 24h. Conservador 22% (rango 20-25% Jesus).
+    //
+    // Defensibilidad Repsol: solo se reclama ahorro si el cliente confirma 'no'.
+    // 'nosabe' = no se asume ahorro (no inflar cifras).
+    const apagadoNoct = inputs.maquina_apagado;   // 'si' | 'no' | 'nosabe'
+    const chaqueta    = inputs.maquina_chaqueta;  // 'si' | 'no' | 'nosabe'
+    const knMaq = kN[tipoMaq] || 6;                // kWh/dia referencia maquina nueva
+    const horasCerrado = Math.max(0, 24 - horasDia);
+    const PCT_CHAQUETA = 0.22;
+    let eApagado = 0;
+    if (apagadoNoct === 'no' && horasCerrado >= 10) {
+      eApagado += knMaq * (horasCerrado / 24) * numMaq * diasOp * precioKwh;
+    }
+    if (chaqueta === 'no') {
+      const horas_activas_pct = (apagadoNoct === 'no' && horasCerrado >= 10)
+        ? (horasDia / 24)
+        : 1.0;
+      eApagado += knMaq * horas_activas_pct * PCT_CHAQUETA * numMaq * diasOp * precioKwh;
+    }
     // eElec ELIMINADO tras reunion Jesus 2026-05-29 (veredicto CSV fila 25: "NADA!").
     // La formula `cafes x 1,5 x 12 x 0,20` era inventada, sin justificacion en su doc.
     // El ahorro real al pasar de monofasica a trifasica es despreciable (afecta a
@@ -128,14 +160,42 @@
     } else if (iluminacion !== 'led' && iluminacion !== 'nosabe') {
       fL = iluminacion === 'halogena' ? 1.3 : (iluminacion === 'mixta' ? 0.6 : 1.0);
     }
-    // eLuz refactorizado a kWh x precio_kWh tras reunion Jesus 2026-05-29. Verificado en
-    // codigo: NO existia coef 0,80 literal; la base 3,5 EUR/dia era valor bajado a mano
-    // (decision historica Jore por "riesgo legal"). Recuperamos 25,2 kWh/dia base del
-    // doc Jesus (50 puntos x 2150W ahorro halogena->LED x 12h = 25,8 kWh, redondeado a
-    // 25,2 para encajar con los 7,05 EUR/dia a 0,28 EUR/kWh). Ahora la tarifa electrica
-    // afecta linealmente al ahorro de iluminacion (era el bug que Jesus detecto en vivo).
-    const kWh_luz_base = 25.2;
-    const eLuz = kWh_luz_base * fL * ft * precioKwh * diasOp;
+    // === eLuz (v3.0-gamma M7, §2.7 Iluminacion % factura simplificada) ===
+    // Dos modos en paralelo:
+    //
+    // 1. Modo SIMPLIFICADO (§2.7, decision Jesus 2026-05-29 + Jore 2026-06-01):
+    //    si cliente da importe_factura_mensual > 0, motor usa:
+    //      eLuz = importe_anual × 8% (iluminacion hosteleria, fuentes oficiales)
+    //             × ahorro_pct_LED segun bombilla predominante
+    //    Ahorro al cambiar a LED (caedigital + IDAE):
+    //      desde halogena: 75% · desde fluorescente: 50% · desde LED: 0 · desconocido: 0
+    //    Si tiene varias marcadas (iluminacion_multi), domina la peor: halogena > fluo > LED.
+    //
+    // 2. Modo GRANULAR (v3.0-gamma.1 base): si NO hay importe_factura, motor usa
+    //    25.2 kWh/dia × fL × ft × precio_kWh × diasOp. Mantiene compatibilidad con
+    //    goldens del harness (baseInputs no incluye importe_factura → cae al granular).
+    const importeFacturaMensual = Math.max(0, Number(inputs.importe_factura_mensual) || 0);
+    let eLuz;
+    if (importeFacturaMensual > 0) {
+      const PCT_ILUMINACION = 0.08;
+      const AHORROS_LED = { halogena: 0.75, fluorescente: 0.50, led: 0 };
+      let predominante = null;
+      if (Array.isArray(inputs.iluminacion_multi)) {
+        if (inputs.iluminacion_multi.indexOf('halogena') >= 0) predominante = 'halogena';
+        else if (inputs.iluminacion_multi.indexOf('fluorescente') >= 0) predominante = 'fluorescente';
+        else if (inputs.iluminacion_multi.indexOf('led') >= 0) predominante = 'led';
+      } else {
+        if (iluminacion === 'halogena' || iluminacion === 'mixta') predominante = 'halogena';
+        else if (iluminacion === 'fluorescente') predominante = 'fluorescente';
+        else if (iluminacion === 'led' || iluminacion === 'nosabe') predominante = 'led';
+      }
+      const ahorro_pct = AHORROS_LED[predominante] || 0;
+      eLuz = importeFacturaMensual * 12 * PCT_ILUMINACION * ahorro_pct;
+    } else {
+      // Modo granular (mantiene goldens v3.0-gamma.1).
+      const kWh_luz_base = 25.2;
+      eLuz = kWh_luz_base * fL * ft * precioKwh * diasOp;
+    }
     // eClima refactorizado a kWh x precio_kWh (paralelo a eLuz). 1,50 EUR/dia / 0,28
     // EUR/kWh = 5,36 kWh/dia base, escalado por factor tamano del local. Sensible a tarifa.
     const kWh_clima_base = 5.36;
@@ -316,9 +376,19 @@
         eHielo = 0.80 * diasOp;
       }
     }
-    let eLava = lavaplatos === 'cupula' ? 1.0 * diasOp : (lavaplatos === 'no' ? 0.5 * diasOp : 0);
-    let eInf = infusiones * 0.04 * diasOp;
-    const ENERGIA = eMaq + eAisl + eElec + eLuz + eClima + eFrio + ePerl + eAnti + eHielo + eLava + eInf;
+    // === eLava + eInf refactor a kWh × precio_kWh (v3.0-gamma M9, 2026-06-01) ===
+    // Antes: cupula 1.0 EUR/dia, sin maquina 0.5 EUR/dia, infusion 0.04 EUR/inf.
+    // Ahora: convertidos a kWh equivalentes a 0.28 EUR/kWh referencia. Identico a
+    // 0.28 (preserva goldens) + sensible al precio (Jesus).
+    const KWH_LAVA_CUPULA_DIA = 1.0 / 0.28;  // 3.5714 kWh/dia
+    const KWH_LAVA_SIN_DIA    = 0.5 / 0.28;  // 1.7857 kWh/dia
+    const KWH_INF_POR_INF     = 0.04 / 0.28; // 0.1429 kWh/infusion
+    let eLava;
+    if (lavaplatos === 'cupula')   eLava = KWH_LAVA_CUPULA_DIA * diasOp * precioKwh;
+    else if (lavaplatos === 'no')  eLava = KWH_LAVA_SIN_DIA    * diasOp * precioKwh;
+    else                            eLava = 0;
+    let eInf = infusiones * KWH_INF_POR_INF * diasOp * precioKwh;
+    const ENERGIA = eMaq + eAisl + eApagado + eElec + eLuz + eClima + eFrio + ePerl + eAnti + eHielo + eLava + eInf;
 
     // --- Insumos ---
     const pctL = 0.70;
@@ -422,7 +492,7 @@
       HARD, SOFT, ENERGIA, INSUMOS,
       fin,
       // Desglose energía
-      eMaq, eAisl, eElec, eLuz, eClima, eFrio, ePerl, eAnti, eHielo, eLava, eInf,
+      eMaq, eAisl, eApagado, eElec, eLuz, eClima, eFrio, ePerl, eAnti, eHielo, eLava, eInf,
       // Desglose insumos (iIn eliminado v3.0-gamma.1, ver J1)
       iL, iG, iA, iE, pen, sub,
       // Operativo y soft
@@ -449,9 +519,10 @@
   // Mantener sincronizado con las variables del return de calcularPuro.
   const NOMBRES_LEGIBLES = {
     // Energia
-    eMaq:  'Maquina de cafe',
-    eAisl: 'Aislamiento de la caldera',
-    eElec: 'Instalacion electrica (mono vs tri)',
+    eMaq:    'Maquina de cafe',
+    eAisl:   'Aislamiento de la caldera',
+    eApagado:'Apagado nocturno + chaqueta termica',
+    eElec:   'Instalacion electrica (mono vs tri)',
     eLuz:  'Iluminacion',
     eClima:'Climatizacion',
     eFrio: 'Refrigeracion (frio granular)',
