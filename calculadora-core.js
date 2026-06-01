@@ -195,8 +195,10 @@
       factorMant = mantPrev === 'no' ? 1.30 : (mantPrev === 'si' ? 1.00 : 1.10);
     }
 
-    // Helper: consumo anual (kWh) para una categoria n*kw*h*diasOp con defaults
-    function consumoFrio(n, kw_raw, h_raw, defaults) {
+    // Helper: consumo anual (kWh) para una categoria n*kw*h*diasOp con defaults.
+    // Compartido entre frio (§2.1) y cocina (§2.2). Si el cliente da kW propio
+    // (medidor enchufado), prevalece sobre el default conservador del sector.
+    function consumoEquipo(n, kw_raw, h_raw, defaults) {
       const cantidad = Math.max(0, Number(n) || 0);
       if (cantidad === 0) return 0;
       const kw = (kw_raw > 0) ? Number(kw_raw) : defaults.kw;
@@ -204,13 +206,13 @@
       return cantidad * kw * h * diasOp;
     }
 
-    const kwh_botelleros     = consumoFrio(inputs.botelleros_n,     inputs.botelleros_kw,     inputs.botelleros_h,     FRIO_DEFAULTS.botellero);
-    const kwh_mesas_frias    = consumoFrio(inputs.mesas_frias_n,    inputs.mesas_frias_kw,    inputs.mesas_frias_h,    FRIO_DEFAULTS.mesa_fria);
-    const kwh_congeladores   = consumoFrio(inputs.congeladores_n,   inputs.congeladores_kw,   inputs.congeladores_h,   FRIO_DEFAULTS.congelador);
-    const kwh_neveras        = consumoFrio(inputs.neveras_n,        inputs.neveras_kw,        inputs.neveras_h,        FRIO_DEFAULTS.nevera);
-    const kwh_abatidor       = consumoFrio(inputs.abatidor_n,       inputs.abatidor_kw,       inputs.abatidor_h,       FRIO_DEFAULTS.abatidor);
-    const kwh_camara_conserv = consumoFrio(camConserv,              inputs.camaras_conserv_kw, inputs.camaras_conserv_h, FRIO_DEFAULTS.camara_conserv);
-    const kwh_camara_congel  = consumoFrio(camCongel,               inputs.camaras_congel_kw,  inputs.camaras_congel_h,  FRIO_DEFAULTS.camara_congel);
+    const kwh_botelleros     = consumoEquipo(inputs.botelleros_n,     inputs.botelleros_kw,     inputs.botelleros_h,     FRIO_DEFAULTS.botellero);
+    const kwh_mesas_frias    = consumoEquipo(inputs.mesas_frias_n,    inputs.mesas_frias_kw,    inputs.mesas_frias_h,    FRIO_DEFAULTS.mesa_fria);
+    const kwh_congeladores   = consumoEquipo(inputs.congeladores_n,   inputs.congeladores_kw,   inputs.congeladores_h,   FRIO_DEFAULTS.congelador);
+    const kwh_neveras        = consumoEquipo(inputs.neveras_n,        inputs.neveras_kw,        inputs.neveras_h,        FRIO_DEFAULTS.nevera);
+    const kwh_abatidor       = consumoEquipo(inputs.abatidor_n,       inputs.abatidor_kw,       inputs.abatidor_h,       FRIO_DEFAULTS.abatidor);
+    const kwh_camara_conserv = consumoEquipo(camConserv,              inputs.camaras_conserv_kw, inputs.camaras_conserv_h, FRIO_DEFAULTS.camara_conserv);
+    const kwh_camara_congel  = consumoEquipo(camCongel,               inputs.camaras_congel_kw,  inputs.camaras_congel_h,  FRIO_DEFAULTS.camara_congel);
 
     const kwh_frio_total = (
       kwh_botelleros + kwh_mesas_frias + kwh_congeladores + kwh_neveras +
@@ -219,9 +221,101 @@
 
     const ahorro_kwh_frio = kwh_frio_total * (1 - 1 / factorMant);
     let eFrio = ahorro_kwh_frio * precioKwh;
+
+    // === §2.2 Cocina + otros equipos granular (v3.0-gamma, sesion 2026-06-01) ===
+    // Decision Jore 2026-06-01 (opcion A): solo CAPTURAR consumo en kWh/anio
+    // por categoria. NO se genera ahorro en HARD aqui (eCocina = 0). Razon:
+    // la cocina no tiene factor de mantenimiento estandar acumulativo como
+    // el frio (no hay "condensador sucio" para una freidora). El ahorro real
+    // viene de los CAEs al sustituir equipos viejos (entra en §2.4).
+    //
+    // Defaults conservadores por categoria (validables con Jesus el miercoles).
+    // Cliente puede sobreescribir kW/h si los conoce. Si no, asumimos defaults.
+    const COCINA_DEFAULTS = {
+      fuego_electrico: { kw: 2.0,  h: 4 },  // vitroceramica zona tipica, uso parcial 4h/dia
+      freidora:        { kw: 10.0, h: 4 },  // 10L × 1 kW/L industrial, 4h/dia uso real
+      salamandra:      { kw: 3.0,  h: 2 },  // 2-4 kW pico, uso esporadico
+      mesa_caliente:   { kw: 1.5,  h: 8 },  // bano maria continuo 8h
+      montacargas:     { kw: 1.2,  h: 2 },  // uso intermitente, 2h activo/dia
+      lavavasos:       { kw: 2.5,  h: 6 },  // 2.8-3.4 kW pico × duty cycle 70%
+      gas_equipo_kwh_dia: 10                // 10 kWh/dia por equipo a gas si no conoce consumo
+    };
+    const KWH_POR_M3_GAS = 11.7;  // 1 m^3 gas natural (PCS) - reservado para conversion futura
+
+    // Fuegos electricos y freidoras: la UI captura solo el numero (sin kW/h).
+    // Pasan por default puro (kw × h × diasOp × n).
+    const kwh_fuegos = Math.max(0, Number(inputs.cocina_fuegos) || 0) *
+                       COCINA_DEFAULTS.fuego_electrico.kw *
+                       COCINA_DEFAULTS.fuego_electrico.h *
+                       diasOp;
+    const kwh_freidoras = Math.max(0, Number(inputs.cocina_freidoras_n) || 0) *
+                          COCINA_DEFAULTS.freidora.kw *
+                          COCINA_DEFAULTS.freidora.h *
+                          diasOp;
+
+    // Salamandra, mesas calientes, lavavasos: UI ya captura n+kW+h. Helper consumoEquipo.
+    const kwh_salamandra      = consumoEquipo(inputs.salamandra_n,      inputs.salamandra_kw,      inputs.salamandra_h,      COCINA_DEFAULTS.salamandra);
+    const kwh_mesas_calientes = consumoEquipo(inputs.mesas_calientes_n, inputs.mesas_calientes_kw, inputs.mesas_calientes_h, COCINA_DEFAULTS.mesa_caliente);
+    const kwh_lavavasos       = consumoEquipo(inputs.lavavasos_n,       inputs.lavavasos_kw,       inputs.lavavasos_h,       COCINA_DEFAULTS.lavavasos);
+
+    // Montacargas: M3 (J6, 2026-06-01) elimino el select si/no. Ahora se detecta
+    // "tiene montacargas" si kW > 0 o horas > 0. Patron uniforme con resto de equipos.
+    const tieneMontacargas = Number(inputs.montacargas_kw) > 0 || Number(inputs.montacargas_horas) > 0;
+    const kwh_montacargas = tieneMontacargas
+      ? consumoEquipo(1, inputs.montacargas_kw, inputs.montacargas_horas, COCINA_DEFAULTS.montacargas)
+      : 0;
+
+    // Gas (cocina): el cliente puede meter consumo directo (kWh/dia, asumido por convencion v3.0-gamma)
+    // o solo el numero de equipos a gas (asumimos default 10 kWh/dia por equipo). TODO sucesor:
+    // anadir select unidad m3/dia vs kWh/dia para mayor precision.
+    let kwh_gas_dia = 0;
+    if (Number(inputs.cocina_gas_consumo) > 0) {
+      kwh_gas_dia = Number(inputs.cocina_gas_consumo);
+    } else if (Number(inputs.cocina_gas_equipos) > 0) {
+      kwh_gas_dia = Number(inputs.cocina_gas_equipos) * COCINA_DEFAULTS.gas_equipo_kwh_dia;
+    }
+    const kwh_gas = kwh_gas_dia * diasOp;
+
+    const kwh_cocina_total = (
+      kwh_fuegos + kwh_freidoras + kwh_salamandra +
+      kwh_mesas_calientes + kwh_montacargas + kwh_lavavasos + kwh_gas
+    );
+
+    // eCocina = 0 hasta §2.4 CAEs (decision Jore opcion A, 2026-06-01).
+    // El consumo capturado (kwh_cocina_total + desglose) se expone en el return
+    // para que el bloque CAEs lo consuma al calcular ahorros por sustitucion.
+    const eCocina = 0;
     let ePerl = perlizadores === 'no' ? 1.20 * ft * diasOp : 0;
     let eAnti = tratAgua === 'no' ? 0.50 * diasOp : 0;
-    let eHielo = maqHielo === 'antigua' ? 0.80 * diasOp : 0;
+    // === eHielo refactor (§2.8, v3.0-gamma 2026-06-01, M2) ===
+    // Antes: 0,80 EUR/dia fijo si maq_hielo='antigua' (sin precio_kWh, sin aforo).
+    // Ahora: si aforo > 0, calculo real basado en demanda de hielo del local.
+    //   demanda_kg_anio = aforo × kg_persona_dia × diasOp
+    //   ahorro_kWh = demanda × (kWh_antigua - kWh_eficiente)
+    //   eHielo = ahorro_kWh × precio_kWh
+    // Cifras IDAE/sector (validar Jesus miercoles 03/06):
+    //   - 0.1 kg/persona/dia conservador (bar coctel >> 0.5). Validar.
+    //   - Antigua: 0.5 kWh/kg hielo producido
+    //   - Eficiente: 0.18 kWh/kg (felac.com, modelo bajo consumo)
+    //   - Delta ahorro: 0.32 kWh/kg
+    // Si aforo = 0 (no se ha rellenado), fallback al calculo v3.0-beta para
+    // no romper goldens del harness (que no pasa aforo en baseInputs).
+    let eHielo = 0;
+    if (maqHielo === 'antigua') {
+      const aforo = Math.max(0, Number(inputs.aforo) || 0);
+      if (aforo > 0) {
+        const KG_PERSONA_DIA = 0.1;       // conservador, validar Jesus
+        const KWH_KG_ANTIGUA = 0.5;
+        const KWH_KG_EFICIENTE = 0.18;
+        const demanda_kg_anio = aforo * KG_PERSONA_DIA * diasOp;
+        const ahorro_kwh = demanda_kg_anio * (KWH_KG_ANTIGUA - KWH_KG_EFICIENTE);
+        eHielo = ahorro_kwh * precioKwh;
+      } else {
+        // Fallback v3.0-beta: 0.80 EUR/dia fijo si no se conoce aforo.
+        // Preserva goldens del harness mientras el cliente no rellena aforo.
+        eHielo = 0.80 * diasOp;
+      }
+    }
     let eLava = lavaplatos === 'cupula' ? 1.0 * diasOp : (lavaplatos === 'no' ? 0.5 * diasOp : 0);
     let eInf = infusiones * 0.04 * diasOp;
     const ENERGIA = eMaq + eAisl + eElec + eLuz + eClima + eFrio + ePerl + eAnti + eHielo + eLava + eInf;
@@ -339,6 +433,10 @@
       kwh_frio_total, ahorro_kwh_frio, factorMant,
       kwh_botelleros, kwh_mesas_frias, kwh_congeladores, kwh_neveras,
       kwh_abatidor, kwh_camara_conserv, kwh_camara_congel,
+      // §2.2 desglose cocina granular (v3.0-gamma) — consumo solo, ahorro=0 hasta §2.4 CAEs
+      kwh_cocina_total, eCocina,
+      kwh_fuegos, kwh_freidoras, kwh_salamandra,
+      kwh_mesas_calientes, kwh_montacargas, kwh_lavavasos, kwh_gas,
       // Variables derivadas (útiles para diagnosticar tests)
       diasOp, ft, precioCafe, plazoRenting, coefRenting,
     };

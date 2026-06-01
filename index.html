@@ -161,14 +161,12 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Aforo del local (personas)</label><input type="number" id="aforo" placeholder="Ej: 40" min="0"></div>
 </div>
 <div class="row triple">
-  <div class="field"><label>Montacargas</label><select id="montacargas" onchange="toggleMontacargasKw()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
   <div class="field"><label>Almacén</label><select id="almacen"><option value="no">No tiene</option><option value="interno">Interno</option><option value="externo">Externo</option><option value="ambos">Ambos</option></select></div>
   <div class="field"><label>Tipo de contrato del local</label><select id="tipo_contrato_local"><option value="">Seleccionar...</option><option value="compraventa">Compraventa</option><option value="alquiler_estandar">Alquiler estándar</option><option value="traspaso">Traspaso</option><option value="otro">Otro</option></select></div>
+  <div class="field"><label>Montacargas - potencia (kW)</label><input type="number" id="montacargas_kw" placeholder="0 si no tiene" step="0.1" min="0"></div>
 </div>
-<!-- Montacargas detalle (kW + h/dia). Visible si montacargas=si. Motor pendiente §2.2 con cifras IDAE. -->
-<div class="row field-hidden" id="row_montacargas_detalle">
-  <div class="field"><label>Montacargas - potencia (kW)</label><input type="number" id="montacargas_kw" placeholder="Ej: 5" step="0.1" min="0"></div>
-  <div class="field"><label>Montacargas - horas/día encendido</label><input type="number" id="montacargas_horas" placeholder="Ej: 2" step="0.5" min="0" max="24"></div>
+<div class="row">
+  <div class="field"><label>Montacargas - horas/día encendido</label><input type="number" id="montacargas_horas" placeholder="0 si no tiene" step="0.5" min="0" max="24"></div>
 </div>
 </div>
 
@@ -273,12 +271,9 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Neveras (h/día)</label><input type="number" id="neveras_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
 </div>
 
-<!-- Abatidor de temperatura (ultracongelador). Condicional a abatidor=si. -->
-<div class="row">
-  <div class="field"><label>Abatidor de temperatura</label><select id="abatidor" onchange="toggleAbatidor()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
-</div>
-<div class="row triple field-hidden" id="row_abatidor_detalle">
-  <div class="field"><label>Abatidor (nº)</label><input type="number" id="abatidor_n" placeholder="Ej: 1" min="0"></div>
+<!-- Abatidor de temperatura (ultracongelador). Patron n+kW+h: n=0 si no tiene. -->
+<div class="row triple">
+  <div class="field"><label>Abatidor (nº)</label><input type="number" id="abatidor_n" placeholder="0 si no tiene" min="0"></div>
   <div class="field"><label>Abatidor (kW)</label><input type="number" id="abatidor_kw" placeholder="Ej: 2" step="0.1" min="0"></div>
   <div class="field"><label>Abatidor (h/día)</label><input type="number" id="abatidor_h" placeholder="Ej: 4" step="0.5" min="0" max="24"></div>
 </div>
@@ -329,19 +324,15 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   </div>
 </div>
 
-<!-- Salamandra y Mesas calientes. Motor pendiente §2.2 con cifras IDAE. -->
+<!-- Salamandra (horno superior) y Mesas calientes. Patron n+kW+h: n=0 si no tiene. -->
 <div class="sub-bloque-title">Otros aparatos eléctricos</div>
-<div class="row">
-  <div class="field"><label>Salamandra (horno superior)</label><select id="salamandra" onchange="toggleSalamandra()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
-  <div class="field"><label>Mesas calientes</label><select id="mesas_calientes" onchange="toggleMesasCalientes()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
-</div>
-<div class="row triple field-hidden" id="row_salamandra_detalle">
-  <div class="field"><label>Salamandra (nº)</label><input type="number" id="salamandra_n" placeholder="Ej: 1" min="0"></div>
+<div class="row triple">
+  <div class="field"><label>Salamandra (nº)</label><input type="number" id="salamandra_n" placeholder="0 si no tiene" min="0"></div>
   <div class="field"><label>Salamandra (kW)</label><input type="number" id="salamandra_kw" placeholder="Ej: 3" step="0.1" min="0"></div>
   <div class="field"><label>Salamandra (h/día)</label><input type="number" id="salamandra_h" placeholder="Ej: 2" step="0.5" min="0" max="24"></div>
 </div>
-<div class="row triple field-hidden" id="row_mesas_calientes_detalle">
-  <div class="field"><label>Mesas calientes (nº)</label><input type="number" id="mesas_calientes_n" placeholder="Ej: 1" min="0"></div>
+<div class="row triple">
+  <div class="field"><label>Mesas calientes (nº)</label><input type="number" id="mesas_calientes_n" placeholder="0 si no tiene" min="0"></div>
   <div class="field"><label>Mesas calientes (kW)</label><input type="number" id="mesas_calientes_kw" placeholder="Ej: 1,5" step="0.1" min="0"></div>
   <div class="field"><label>Mesas calientes (h/día)</label><input type="number" id="mesas_calientes_h" placeholder="Ej: 4" step="0.5" min="0" max="24"></div>
 </div>
@@ -353,12 +344,9 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Perlizadores</label><select id="perlizadores"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
 </div>
 
-<!-- Lavavasos de barra como campo independiente. Pendiente §2.2 (conectar al motor con cifras IDAE). -->
-<div class="row">
-  <div class="field"><label>Lavavasos (barra)</label><select id="lavavasos" onchange="toggleLavavasos()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
-</div>
-<div class="row triple field-hidden" id="row_lavavasos_detalle">
-  <div class="field"><label>Lavavasos (nº)</label><input type="number" id="lavavasos_n" placeholder="Ej: 1" min="0"></div>
+<!-- Lavavasos de barra (campo independiente de lavaplatos de cocina). Patron n+kW+h. -->
+<div class="row triple">
+  <div class="field"><label>Lavavasos (nº)</label><input type="number" id="lavavasos_n" placeholder="0 si no tiene" min="0"></div>
   <div class="field"><label>Lavavasos (kW)</label><input type="number" id="lavavasos_kw" placeholder="Ej: 2" step="0.1" min="0"></div>
   <div class="field"><label>Lavavasos (h/día)</label><input type="number" id="lavavasos_h" placeholder="Ej: 8" step="0.5" min="0" max="24"></div>
 </div>
@@ -597,6 +585,9 @@ const inputs={
   // Vacio (ninguno marcado) = NS/NC, motor calcula fL=0 (equivalente a LED, regla v2.5).
   iluminacion_multi:['led','fluorescente','halogena'].filter(function(t){return document.getElementById('iluminacion_'+t).checked}),
   climatizacion:val('climatizacion'),
+  // §2.8 (v3.0-gamma 2026-06-01) — aforo del local (bloque 1) entra al motor para
+  // refactor eHielo basado en demanda real (kg/persona/dia × diasOp).
+  aforo:num('aforo'),
   camaras_conserv:num('camaras_conserv'),
   camaras_congel:num('camaras_congel'),
   // §2.1 (v3.0-gamma 2026-06-01) — Frio granular: inputs por categoria n+kW+h/dia.
@@ -622,6 +613,24 @@ const inputs={
   condensador_sucio:document.getElementById('frio_condensador_sucio').checked,
   cercania_calor:document.getElementById('frio_cercania_calor').checked,
   apertura_puertas:document.getElementById('frio_apertura_puertas').checked,
+  // §2.2 (v3.0-gamma 2026-06-01) — Cocina + otros granular: inputs para captura
+  // de consumo en kWh/anio. eCocina = 0 en HARD hasta §2.4 (CAEs). Si kW o h
+  // vienen vacios, motor aplica defaults conservadores de COCINA_DEFAULTS.
+  cocina_fuegos:num('cocina_fuegos'),
+  cocina_freidoras_n:num('cocina_freidoras_n'),
+  cocina_gas_equipos:num('cocina_gas_equipos'),
+  cocina_gas_consumo:num('cocina_gas_consumo'),
+  salamandra_n:num('salamandra_n'),
+  salamandra_kw:num('salamandra_kw'),
+  salamandra_h:num('salamandra_h'),
+  mesas_calientes_n:num('mesas_calientes_n'),
+  mesas_calientes_kw:num('mesas_calientes_kw'),
+  mesas_calientes_h:num('mesas_calientes_h'),
+  lavavasos_n:num('lavavasos_n'),
+  lavavasos_kw:num('lavavasos_kw'),
+  lavavasos_h:num('lavavasos_h'),
+  montacargas_kw:num('montacargas_kw'),
+  montacargas_horas:num('montacargas_horas'),
   lavaplatos:val('lavaplatos'),
   maq_hielo:val('maq_hielo'),
   perlizadores:val('perlizadores'),
@@ -676,27 +685,20 @@ el('output').scrollIntoView({behavior:'smooth'});
 function toggleDesglose(){document.getElementById('desglose').classList.toggle('open')}
 function resetear(){document.getElementById('output').style.display='none';document.getElementById('error-msg').style.display='none';window.scrollTo({top:0,behavior:'smooth'})}
 function toggleDiasCerrados(){const f=document.getElementById('field_dias_cerrados');const v=document.getElementById('dias_semana').value;f.classList.toggle('field-hidden',v==='7')}
-/* v3.0 Hito A — handlers UI condicionales, no afectan al motor */
+/* Handlers UI condicionales (los que siguen vivos: dias cerrados, contrato alquiler,
+   numero camaras vigilancia, CAEs maquina cafe segun antiguedad, cocina gas).
+   M3 (J6, 2026-06-01) eliminó los toggles de abatidor/salamandra/mesas calientes/
+   lavavasos/montacargas que dependian de selects Si/No. Ahora siguen patron uniforme
+   n+kW+h, siempre visibles, n=0 si no tiene. */
 function toggleContratoRestante(){const f=document.getElementById('field_contrato_restante');const v=document.getElementById('regimen_local').value;f.classList.toggle('field-hidden',v!=='alquiler')}
 function toggleNumCamarasVig(){const f=document.getElementById('field_num_camaras_vig');const v=document.getElementById('camaras_vigilancia').value;f.classList.toggle('field-hidden',v!=='si')}
-/* v3.0 Hito C — handlers UI condicionales para campos de motor con hueco (TODO Jesus Q5) */
-function toggleMontacargasKw(){const f=document.getElementById('row_montacargas_detalle');const v=document.getElementById('montacargas').value;f.classList.toggle('field-hidden',v!=='si')}
 function toggleCaesMaqCafe(){const f=document.getElementById('row_caes_maq_cafe');const v=document.getElementById('antiguedad_maq').value;f.classList.toggle('field-hidden',!(v==='1'||v==='3'))}
-function toggleAbatidor(){const f=document.getElementById('row_abatidor_detalle');const v=document.getElementById('abatidor').value;f.classList.toggle('field-hidden',v!=='si')}
-function toggleSalamandra(){const f=document.getElementById('row_salamandra_detalle');const v=document.getElementById('salamandra').value;f.classList.toggle('field-hidden',v!=='si')}
-function toggleMesasCalientes(){const f=document.getElementById('row_mesas_calientes_detalle');const v=document.getElementById('mesas_calientes').value;f.classList.toggle('field-hidden',v!=='si')}
 function toggleCocinaGas(){const f=document.getElementById('row_cocina_gas');const v=document.getElementById('cocina_tipo').value;f.classList.toggle('field-hidden',!(v==='gas'||v==='mixta'))}
-function toggleLavavasos(){const f=document.getElementById('row_lavavasos_detalle');const v=document.getElementById('lavavasos').value;f.classList.toggle('field-hidden',v!=='si')}
 toggleDiasCerrados();
 toggleContratoRestante();
 toggleNumCamarasVig();
-toggleMontacargasKw();
 toggleCaesMaqCafe();
-toggleAbatidor();
-toggleSalamandra();
-toggleMesasCalientes();
 toggleCocinaGas();
-toggleLavavasos();
 </script>
 </body>
 </html>
