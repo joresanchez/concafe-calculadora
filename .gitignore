@@ -2,9 +2,9 @@
 # Hostinger pullea este repo y publica todo lo que este en main; estos quedan
 # fuera del tracking para que el deploy publique solo lo de produccion.
 
-# Harness y runner
+# Harness y runner + scripts internos de analisis
 tests.html
-_verify-tests.js
+_*.js
 
 # Documentacion interna del proyecto (notas, planning, decisiones)
 RESUME-HERE.md
@@ -16,6 +16,20 @@ REUNION-JESUS.md
 
 # Material fuente bruto (WhatsApp Jesus, transcripciones, prototipos Base44)
 cambios_mayo_2026/
+
+# Auditorias de formulas y docs de reuniones (planning interno)
+auditoria-*
+revision-formulas-*
+
+# Cinturon de seguridad por extension: NADA de esto es produccion.
+# Repo PUBLICO -> solo se publican index.html, calculadora-core.js,
+# logotipo.png, README.md y .gitignore. Todo doc/dato/script interno fuera.
+*.md
+!README.md
+*.xlsx
+*.csv
+*.py
+optimizacion_radical_y_excelencia_operativa.md
 
 # Sistema
 .DS_Store

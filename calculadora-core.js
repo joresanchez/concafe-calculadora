@@ -23,11 +23,12 @@
   }
 
   function calcularPuro(inputs) {
-    // --- Validación de entrada (idéntica al index.html v2.5) ---
-    const cafes = inputs.cafes_dia;
-    if (!cafes || cafes < 1 || isNaN(cafes)) {
-      return { ok: false, error: 'Introduce al menos 1 café al día.' };
-    }
+    // --- Cafe NO obligatorio (post reunion Jesus 2026-05-29) ---
+    // La calculadora pivota a eficiencia energetica + CAEs (oportunidad Repsol). El cafe
+    // pasa a ser dato opcional, proxy del tiempo de uso de la maquina. Si no se introduce,
+    // las formulas que dependen de cafe devuelven 0 sin error y el motor sigue corriendo
+    // con energia + financiero + el resto.
+    const cafes = Math.max(0, Number(inputs.cafes_dia) || 0);
 
     // --- Normalización de inputs con sus defaults / clamps originales ---
     const infusiones = Math.max(0, inputs.infusiones_dia || 0);
@@ -88,7 +89,10 @@
     }
 
     // --- Energía ---
-    const kB = { compacta: 10, '2g': 18, '3g': 24, multi: 12 };
+    // kB ajustado tras reunion Jesus 2026-05-29: 2g sube de 18 a 24 kWh/dia (consenso
+    // sobre modelo Gaggia Vetro como referencia, encendida 24h con mantenimiento normal).
+    // TODO Jesus: validar compacta/3g/multi con cifras estandar via Gemini.
+    const kB = { compacta: 10, '2g': 24, '3g': 24, multi: 12 };
     const kN = { compacta: 3, '2g': 6, '3g': 8, multi: 6 };
     const fA = antiguedad >= 10 ? 1.2 : (antiguedad >= 5 ? 1.0 : (antiguedad >= 2 ? 0.7 : 0.1));
     const diff = Math.max(0, (kB[tipoMaq] || 18) * fA - (kN[tipoMaq] || 6));
@@ -98,7 +102,12 @@
       eMaq = Math.max(0, eMaq);
     }
     let eAisl = (aislamiento === 'no' || aislamiento === 'nosabe') ? 1.0 * numMaq * diasOp : 0;
-    let eElec = (elecTipo === 'mono' || elecTipo === 'nosabe') ? cafes * 1.5 * 12 * 0.20 : 0;
+    // eElec ELIMINADO tras reunion Jesus 2026-05-29 (veredicto CSV fila 25: "NADA!").
+    // La formula `cafes x 1,5 x 12 x 0,20` era inventada, sin justificacion en su doc.
+    // El ahorro real al pasar de monofasica a trifasica es despreciable (afecta a
+    // estabilidad de red y reparto de carga por linea, no a consumo). El input elec_tipo
+    // se queda en el formulario como dato descriptivo (auditoria + ficha Repsol).
+    let eElec = 0;
     // D.12 (v3.0 Hito B) — iluminacion multi-select.
     // Acepta array `inputs.iluminacion_multi` (formato nuevo: ['led','halogena',...]).
     // Si no llega array, ruta legacy v2.5 inalterada (string en `iluminacion`).
@@ -120,9 +129,24 @@
     } else if (iluminacion !== 'led' && iluminacion !== 'nosabe') {
       fL = iluminacion === 'halogena' ? 1.3 : (iluminacion === 'mixta' ? 0.6 : 1.0);
     }
-    const eLuz = 3.5 * ft * fL * diasOp;
-    let eClima = clima === 'ac_antiguo' ? 1.50 * ft * diasOp : 0;
-    let eFrio = mantPrev === 'no' ? (camConserv * 1.50 + camCongel * 2.50) * diasOp * 0.30 : 0;
+    // eLuz refactorizado a kWh x precio_kWh tras reunion Jesus 2026-05-29. Verificado en
+    // codigo: NO existia coef 0,80 literal; la base 3,5 EUR/dia era valor bajado a mano
+    // (decision historica Jore por "riesgo legal"). Recuperamos 25,2 kWh/dia base del
+    // doc Jesus (50 puntos x 2150W ahorro halogena->LED x 12h = 25,8 kWh, redondeado a
+    // 25,2 para encajar con los 7,05 EUR/dia a 0,28 EUR/kWh). Ahora la tarifa electrica
+    // afecta linealmente al ahorro de iluminacion (era el bug que Jesus detecto en vivo).
+    const kWh_luz_base = 25.2;
+    const eLuz = kWh_luz_base * fL * ft * precioKwh * diasOp;
+    // eClima refactorizado a kWh x precio_kWh (paralelo a eLuz). 1,50 EUR/dia / 0,28
+    // EUR/kWh = 5,36 kWh/dia base, escalado por factor tamano del local. Sensible a tarifa.
+    const kWh_clima_base = 5.36;
+    let eClima = clima === 'ac_antiguo' ? kWh_clima_base * ft * precioKwh * diasOp : 0;
+    // eFrio BUG corregido tras reunion Jesus 2026-05-29 (CSV fila 26): los 1,50 EUR/dia
+    // (conservacion) y 2,50 EUR/dia (congelacion) YA son el ahorro neto segun el doc Jesus
+    // (compresor sobreconsume 30% cuando hay mal mantenimiento). El x0,30 del motor
+    // recortaba el ahorro un 70% sin justificacion. Eliminado. Impacto: +862 EUR/anio
+    // en el escenario tipo (140 cafes/dia).
+    let eFrio = mantPrev === 'no' ? (camConserv * 1.50 + camCongel * 2.50) * diasOp : 0;
     let ePerl = perlizadores === 'no' ? 1.20 * ft * diasOp : 0;
     let eAnti = tratAgua === 'no' ? 0.50 * diasOp : 0;
     let eHielo = maqHielo === 'antigua' ? 0.80 * diasOp : 0;
@@ -152,7 +176,14 @@
     let sRo = 0;
     if (rotacion === 'alta') sRo = cafes <= 100 ? 1500 : (cafes <= 150 ? 2500 : 3000);
     else if (rotacion === 'media') sRo = cafes <= 100 ? 750 : (cafes <= 150 ? 1250 : 1500);
-    const sVe = (cafes <= 150 ? 5 : 8) * 1.60 * diasOp;
+    // sVe refactorizado tras reunion Jesus 2026-05-29 (CSV fila 24): la metrica original
+    // "5/8 cafes extra x 1,60 EUR margen x diasOp" se reemplaza por "1h/dia ahorrada
+    // x 2,50 EUR/hora trabajada x diasOp" (Jesus dixit). Solo aplica si hay cafes (proxy
+    // de actividad en barra). TODO Jore con Yemy: validar 1h/dia ahorradas y los 2,50
+    // EUR/hora como margen real (vs precio venta o coste empleado).
+    const horasAhorradasDia = 1.0;
+    const margenPorHora = 2.50;
+    const sVe = cafes > 0 ? horasAhorradasDia * margenPorHora * diasOp : 0;
 
     // --- Agregados ---
     const HARD = fin + ENERGIA + INSUMOS + oF + oD;
