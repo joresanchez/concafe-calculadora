@@ -49,7 +49,6 @@
     const tecnicaLeche = inputs.tecnica_leche;
     const dosificacion = inputs.dosificacion;
     const azucar = inputs.azucar;
-    const insourcing = inputs.insourcing;
     const comprasExt = inputs.compras_ext;
     const tamperAuto = inputs.tamper_auto;
     const espumadorAuto = inputs.espumador_auto;
@@ -141,12 +140,85 @@
     // EUR/kWh = 5,36 kWh/dia base, escalado por factor tamano del local. Sensible a tarifa.
     const kWh_clima_base = 5.36;
     let eClima = clima === 'ac_antiguo' ? kWh_clima_base * ft * precioKwh * diasOp : 0;
-    // eFrio BUG corregido tras reunion Jesus 2026-05-29 (CSV fila 26): los 1,50 EUR/dia
-    // (conservacion) y 2,50 EUR/dia (congelacion) YA son el ahorro neto segun el doc Jesus
-    // (compresor sobreconsume 30% cuando hay mal mantenimiento). El x0,30 del motor
-    // recortaba el ahorro un 70% sin justificacion. Eliminado. Impacto: +862 EUR/anio
-    // en el escenario tipo (140 cafes/dia).
-    let eFrio = mantPrev === 'no' ? (camConserv * 1.50 + camCongel * 2.50) * diasOp : 0;
+    // === eFrio granular (v3.0-gamma, sesion 2026-06-01) ===
+    // Refactor estructural §2.1 del plan vivo. El motor antes calculaba
+    // eFrio = (camConserv * 1.50 + camCongel * 2.50) * diasOp (EUR/dia fijo, sin
+    // sensibilidad a precio_kWh, sin granularidad por tipo de equipo).
+    //
+    // Ahora calcula como sumatorio por unidad y categoria:
+    //   consumo_kWh_anio = n * kW_promedio * h_dia * diasOp
+    //   ahorro_kWh = consumo_kWh_anio * (1 - 1/factor_mant)
+    //   eFrio = ahorro_kWh * precio_kWh
+    //
+    // El factor_mant captura el sobreconsumo por mal mantenimiento, con 3 factores
+    // independientes (cifras verificadas en 2026-06-01_cifras-IDAE-equipos.md):
+    //   - Condensador sucio: +15% (bia.app, rango 10-30%)
+    //   - Cercania a fuente de calor: +8% (intarcon/servicios24h)
+    //   - Apertura constante de puertas: +7% (nergiza.com literal)
+    //   Suma maxima: +30% (techo Jesus reunion 2026-05-29)
+    //
+    // Cuidado matematico: si factor_mant = 1.30, el ahorro reclamable es
+    // consumo * (1 - 1/1.30) = consumo * 0.231, NO consumo * 0.30. Es defendible
+    // ante Repsol (Jesus pidio cifras rigorosas para entrar en Guia Repsol).
+    //
+    // Compatibility: si los 3 checkboxes granulares no vienen en inputs, derivamos
+    // el factor desde mant_preventivo (no=1.30, si=1.00, nosabe=1.10).
+    // Si NO hay inputs granulares por categoria, las camaras simples (camConserv/
+    // camCongel) entran al sumatorio con defaults kW=0.50/1.00 y h=24.
+
+    // Defaults kW promedio (no pico, considera duty cycle del compresor) y horas/dia
+    // por categoria. Cliente puede sobreescribir el kW si lo conoce (medidor enchufado).
+    const FRIO_DEFAULTS = {
+      botellero:      { kw: 0.18, h: 24 },
+      mesa_fria:      { kw: 0.30, h: 24 },
+      congelador:     { kw: 0.45, h: 24 },
+      nevera:         { kw: 0.25, h: 24 },
+      abatidor:       { kw: 2.00, h: 2  },
+      camara_conserv: { kw: 0.50, h: 24 },
+      camara_congel:  { kw: 1.00, h: 24 }
+    };
+
+    // Factor de mantenimiento desde checkboxes granulares (si vienen). Si no,
+    // fallback heuristico desde mant_preventivo.
+    const tieneGranularMant = (
+      inputs.condensador_sucio !== undefined ||
+      inputs.cercania_calor   !== undefined ||
+      inputs.apertura_puertas !== undefined
+    );
+    let factorMant;
+    if (tieneGranularMant) {
+      const c1 = inputs.condensador_sucio ? 0.15 : 0;
+      const c2 = inputs.cercania_calor   ? 0.08 : 0;
+      const c3 = inputs.apertura_puertas ? 0.07 : 0;
+      factorMant = 1 + Math.min(0.30, c1 + c2 + c3);
+    } else {
+      factorMant = mantPrev === 'no' ? 1.30 : (mantPrev === 'si' ? 1.00 : 1.10);
+    }
+
+    // Helper: consumo anual (kWh) para una categoria n*kw*h*diasOp con defaults
+    function consumoFrio(n, kw_raw, h_raw, defaults) {
+      const cantidad = Math.max(0, Number(n) || 0);
+      if (cantidad === 0) return 0;
+      const kw = (kw_raw > 0) ? Number(kw_raw) : defaults.kw;
+      const h  = (h_raw > 0)  ? Math.min(24, Number(h_raw)) : defaults.h;
+      return cantidad * kw * h * diasOp;
+    }
+
+    const kwh_botelleros     = consumoFrio(inputs.botelleros_n,     inputs.botelleros_kw,     inputs.botelleros_h,     FRIO_DEFAULTS.botellero);
+    const kwh_mesas_frias    = consumoFrio(inputs.mesas_frias_n,    inputs.mesas_frias_kw,    inputs.mesas_frias_h,    FRIO_DEFAULTS.mesa_fria);
+    const kwh_congeladores   = consumoFrio(inputs.congeladores_n,   inputs.congeladores_kw,   inputs.congeladores_h,   FRIO_DEFAULTS.congelador);
+    const kwh_neveras        = consumoFrio(inputs.neveras_n,        inputs.neveras_kw,        inputs.neveras_h,        FRIO_DEFAULTS.nevera);
+    const kwh_abatidor       = consumoFrio(inputs.abatidor_n,       inputs.abatidor_kw,       inputs.abatidor_h,       FRIO_DEFAULTS.abatidor);
+    const kwh_camara_conserv = consumoFrio(camConserv,              inputs.camaras_conserv_kw, inputs.camaras_conserv_h, FRIO_DEFAULTS.camara_conserv);
+    const kwh_camara_congel  = consumoFrio(camCongel,               inputs.camaras_congel_kw,  inputs.camaras_congel_h,  FRIO_DEFAULTS.camara_congel);
+
+    const kwh_frio_total = (
+      kwh_botelleros + kwh_mesas_frias + kwh_congeladores + kwh_neveras +
+      kwh_abatidor + kwh_camara_conserv + kwh_camara_congel
+    );
+
+    const ahorro_kwh_frio = kwh_frio_total * (1 - 1 / factorMant);
+    let eFrio = ahorro_kwh_frio * precioKwh;
     let ePerl = perlizadores === 'no' ? 1.20 * ft * diasOp : 0;
     let eAnti = tratAgua === 'no' ? 0.50 * diasOp : 0;
     let eHielo = maqHielo === 'antigua' ? 0.80 * diasOp : 0;
@@ -159,13 +231,15 @@
     let iL = (tecnicaLeche === 'calienta' || tecnicaLeche === 'nosabe') ? cafes * pctL * 0.06 * 0.95 * diasOp : 0;
     let iG = dosificacion === 'ojo' ? cafes * 0.0015 * 25 * diasOp : 0;
     let iA = azucar === 'libre' ? cafes * 0.02 * diasOp : 0;
-    let iIn = 0;
-    if (insourcing === 'compra') iIn = cafes <= 100 ? 1200 : (cafes <= 150 ? 2100 : 3500);
-    else if (insourcing === 'mixto') iIn = (cafes <= 100 ? 1200 : (cafes <= 150 ? 2100 : 3500)) * 0.5;
+    // iIn (insourcing de jarabes/chai) ELIMINADO en v3.0-gamma.1 (2026-06-01, J1).
+    // Razon: la calculadora pivoto a eficiencia energetica + CAEs (oportunidad Repsol).
+    // Los jarabes son insumos estrategicos pero no defendibles ante Repsol como ahorro
+    // energetico. Quitarlos baja HARD Cafe Conrado de 19406 a 17201 y La Estacion de
+    // 31075 a 27225, alivia la sensacion "se dispara insumos" que detecto Jesus.
     let iE = 0;
     if (tamperAuto === 'no') iE += cafes * 0.01 * diasOp;
     if (espumadorAuto === 'no' && (tecnicaLeche === 'calienta' || tecnicaLeche === 'nosabe')) iE += cafes * pctL * 0.015 * diasOp;
-    const sub = iL + iG + iA + iIn + iE;
+    const sub = iL + iG + iA + iE;
     const pen = comprasExt === 'frecuente' ? sub * 0.10 : (comprasExt === 'aveces' ? sub * 0.05 : 0);
     const INSUMOS = sub + pen;
 
@@ -255,22 +329,62 @@
       fin,
       // Desglose energía
       eMaq, eAisl, eElec, eLuz, eClima, eFrio, ePerl, eAnti, eHielo, eLava, eInf,
-      // Desglose insumos
-      iL, iG, iA, iIn, iE, pen, sub,
+      // Desglose insumos (iIn eliminado v3.0-gamma.1, ver J1)
+      iL, iG, iA, iE, pen, sub,
       // Operativo y soft
       oF, oD, sAv, sRo, sVe,
       // Rangos
       hMin, hMax, hSeg,
+      // §2.1 desglose frio granular (v3.0-gamma)
+      kwh_frio_total, ahorro_kwh_frio, factorMant,
+      kwh_botelleros, kwh_mesas_frias, kwh_congeladores, kwh_neveras,
+      kwh_abatidor, kwh_camara_conserv, kwh_camara_congel,
       // Variables derivadas (útiles para diagnosticar tests)
       diasOp, ft, precioCafe, plazoRenting, coefRenting,
     };
   }
 
+  // === NOMBRES_LEGIBLES (v3.0-gamma.1, 2026-06-01, J3) ===
+  // Mapa interno -> humano de las variables del motor. Uso futuro: render del
+  // desglose por item en el output (J9), MOTOR.md (J4), y cualquier capa de UI
+  // que quiera enseñar al cliente de donde sale cada euro sin abrir el codigo.
+  // Mantener sincronizado con las variables del return de calcularPuro.
+  const NOMBRES_LEGIBLES = {
+    // Energia
+    eMaq:  'Maquina de cafe',
+    eAisl: 'Aislamiento de la caldera',
+    eElec: 'Instalacion electrica (mono vs tri)',
+    eLuz:  'Iluminacion',
+    eClima:'Climatizacion',
+    eFrio: 'Refrigeracion (frio granular)',
+    ePerl: 'Perlizadores de grifos',
+    eAnti: 'Tratamiento del agua',
+    eHielo:'Maquina de hielo',
+    eLava: 'Lavavajillas / lavavasos',
+    eInf:  'Infusiones (hervidor vs caldera)',
+    // Insumos
+    iL: 'Sobreconsumo de leche al calentar',
+    iG: 'Sobre-dosificacion de cafe',
+    iA: 'Azucar en barra libre',
+    iE: 'Errores manuales (tamper + espumador)',
+    pen:'Penalizacion compras de emergencia',
+    // Operativo (HARD)
+    oF: 'Mise en Place (tiempo perdido buscando)',
+    oD: 'Sistema de comandas',
+    // Estrategico (SOFT)
+    sAv:'Averias evitables (mantenimiento preventivo)',
+    sRo:'Rotacion de personal',
+    sVe:'Velocidad de servicio',
+    // Financiero
+    fin:'Bajada del precio del cafe (modelo cesion)'
+  };
+
   // Exponer en navegador (window) y Node (module.exports) sin tocar al otro.
   root.calcularPuro = calcularPuro;
-  root.calculadoraCore = { calcularPuro, fmt };
+  root.calculadoraCore = { calcularPuro, fmt, NOMBRES_LEGIBLES };
+  root.NOMBRES_LEGIBLES = NOMBRES_LEGIBLES;
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { calcularPuro, fmt };
+    module.exports = { calcularPuro, fmt, NOMBRES_LEGIBLES };
   }
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

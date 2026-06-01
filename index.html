@@ -165,7 +165,7 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Almacén</label><select id="almacen"><option value="no">No tiene</option><option value="interno">Interno</option><option value="externo">Externo</option><option value="ambos">Ambos</option></select></div>
   <div class="field"><label>Tipo de contrato del local</label><select id="tipo_contrato_local"><option value="">Seleccionar...</option><option value="compraventa">Compraventa</option><option value="alquiler_estandar">Alquiler estándar</option><option value="traspaso">Traspaso</option><option value="otro">Otro</option></select></div>
 </div>
-<!-- 0.6 (v3.0 Hito C) — Montacargas detalle (kW + h/dia). Visible si montacargas=si. UI captura; motor: TODO Jesus Q5 (kW promedio). -->
+<!-- Montacargas detalle (kW + h/dia). Visible si montacargas=si. Motor pendiente §2.2 con cifras IDAE. -->
 <div class="row field-hidden" id="row_montacargas_detalle">
   <div class="field"><label>Montacargas - potencia (kW)</label><input type="number" id="montacargas_kw" placeholder="Ej: 5" step="0.1" min="0"></div>
   <div class="field"><label>Montacargas - horas/día encendido</label><input type="number" id="montacargas_horas" placeholder="Ej: 2" step="0.5" min="0" max="24"></div>
@@ -241,16 +241,17 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Tipo climatización</label><select id="climatizacion"><option value="bomba">Bomba de calor</option><option value="ac_antiguo">AC antiguo</option><option value="sin">Sin climatización</option><option value="nosabe">NS / NC</option></select></div>
 </div>
 
-<!-- T.7 (v3.0 Hito A + Hito C) — agrupador visual "Refrigeración (cámaras)" -->
-<!-- v2.5: camaras_conserv + camaras_congel (motor activo). -->
-<!-- v3.0 Hito C: + botelleros/mesas frias/congeladores/neveras/abatidor en paralelo, motor con huecos (TODO Jesus Q5). -->
+<!-- Refrigeracion. Las camaras (conservacion + congelacion) son las categorias mas grandes;
+     botelleros, mesas frias, congeladores, neveras y abatidor son los equipos individuales.
+     Todos entran al sumatorio granular eFrio v3.0-gamma con cifras IDAE. -->
 <div class="sub-bloque-title">Refrigeración (cámaras)</div>
 <div class="row">
-  <div class="field"><label>Cámaras de conservación</label><input type="number" id="camaras_conserv" value="1" min="0" max="10"><div class="hint">0 si no sabe (motor v2.5 activo)</div></div>
-  <div class="field"><label>Cámaras de congelación</label><input type="number" id="camaras_congel" value="0" min="0" max="10"><div class="hint">0 si no sabe (motor v2.5 activo)</div></div>
+  <div class="field"><label>Cámaras de conservación</label><input type="number" id="camaras_conserv" value="1" min="0" max="10"><div class="hint">Número de cámaras grandes para refrigerados (no neveras pequeñas)</div></div>
+  <div class="field"><label>Cámaras de congelación</label><input type="number" id="camaras_congel" value="0" min="0" max="10"><div class="hint">Número de cámaras grandes para congelados</div></div>
 </div>
 
-<!-- D.3 (v3.0 Hito C) — Frio detallado por categoria. UI captura n+kW+h/dia; motor: TODO Jesus Q5 (kW promedio por categoria). -->
+<!-- Frio detallado por categoria (n + kW + h/dia por unidad). Si el cliente solo da el numero,
+     el motor aplica el kW promedio default por categoria (cifras IDAE, considera duty cycle). -->
 <div class="row triple">
   <div class="field"><label>Botelleros (nº)</label><input type="number" id="botelleros_n" placeholder="0" min="0"></div>
   <div class="field"><label>Botelleros (kW)</label><input type="number" id="botelleros_kw" placeholder="Ej: 0,3" step="0.1" min="0"></div>
@@ -272,7 +273,7 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Neveras (h/día)</label><input type="number" id="neveras_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
 </div>
 
-<!-- D.5 (v3.0 Hito C) — Abatidor (ultracongelador). Condicional a abatidor=si. -->
+<!-- Abatidor de temperatura (ultracongelador). Condicional a abatidor=si. -->
 <div class="row">
   <div class="field"><label>Abatidor de temperatura</label><select id="abatidor" onchange="toggleAbatidor()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
 </div>
@@ -282,7 +283,25 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Abatidor (h/día)</label><input type="number" id="abatidor_h" placeholder="Ej: 4" step="0.5" min="0" max="24"></div>
 </div>
 
-<!-- T.6 + D.13 (v3.0 Hito C) — Bandera CAEs refrigeración. Motor: TODO Jesus Q5. -->
+<!-- §2.1 (v3.0-gamma 2026-06-01) — Factores de mal mantenimiento del frio.
+     3 checkboxes acumulativos hasta +30% sobreconsumo. Coeficientes verificados
+     en 2026-06-01_cifras-IDAE-equipos.md.
+     Si el cliente NO los marca, motor deriva el factor desde mant_preventivo
+     (bloque 4): no=+30%, si=0%, nosabe=+10%. Si SI los marca, prevalece su
+     eleccion. Hint explica los porcentajes para que el cliente decida con criterio. -->
+<div class="sub-bloque-title">Estado del mantenimiento del frío</div>
+<div class="row">
+  <div class="field"><label>Factores de sobreconsumo (marca los que apliquen)</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="frio_condensador_sucio"> Condensador sucio (+15 %)</label>
+      <label><input type="checkbox" id="frio_cercania_calor"> Equipos cerca de fuente de calor (+8 %)</label>
+      <label><input type="checkbox" id="frio_apertura_puertas"> Apertura constante de puertas (+7 %)</label>
+    </div>
+    <div class="hint">Sin marcar = derivamos desde "Mantenimiento preventivo" (bloque 4)</div>
+  </div>
+</div>
+
+<!-- Bandera CAEs refrigeracion. Pendiente §2.3: pasar a checkboxes antiguedad>5/renovado<3 por categoria. -->
 <div class="row">
   <div class="field"><label>Bonificación CAEs (refrigeración)</label>
     <div class="checkbox-group">
@@ -291,7 +310,7 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   </div>
 </div>
 
-<!-- D.6-D.9 (v3.0 Hito C) — Cocina detallada. Sub-bloque NUEVO. Motor: TODO Jesus Q5 (consumo por fuego, freidora, equipo gas). -->
+<!-- Cocina detallada. Motor pendiente §2.2 (consumo por fuego, freidora, equipo gas, con cifras IDAE). -->
 <div class="sub-bloque-title">Cocina</div>
 <div class="row triple">
   <div class="field"><label>Nº fuegos</label><input type="number" id="cocina_fuegos" placeholder="Ej: 4" min="0"></div>
@@ -310,7 +329,7 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   </div>
 </div>
 
-<!-- D.14 + D.15 (v3.0 Hito C) — Salamandra y Mesas calientes. Q6 cerrada: incluir como huecos hasta Q5. -->
+<!-- Salamandra y Mesas calientes. Motor pendiente §2.2 con cifras IDAE. -->
 <div class="sub-bloque-title">Otros aparatos eléctricos</div>
 <div class="row">
   <div class="field"><label>Salamandra (horno superior)</label><select id="salamandra" onchange="toggleSalamandra()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
@@ -329,12 +348,12 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 
 <div class="sub-bloque-title">Lavado y agua</div>
 <div class="row triple">
-  <div class="field"><label>Lavaplatos (cocina)</label><select id="lavaplatos"><option value="cupula">Cúpula</option><option value="bajo">Bajomostrador</option><option value="lavavasos">Lavavasos</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select><div class="hint">Motor v2.5 activo. Opción 'Lavavasos' se mantiene hasta Paso 6.</div></div>
+  <div class="field"><label>Lavaplatos (cocina)</label><select id="lavaplatos"><option value="cupula">Cúpula</option><option value="bajo">Bajomostrador</option><option value="lavavasos">Lavavasos</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select></div>
   <div class="field"><label>Máquina de hielo</label><select id="maq_hielo"><option value="antigua">Antigua</option><option value="nueva">Nueva</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select></div>
   <div class="field"><label>Perlizadores</label><select id="perlizadores"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
 </div>
 
-<!-- D.11 (v3.0 Hito C) — Lavavasos de barra como campo independiente. Lavaplatos v2.5 intacto en motor. -->
+<!-- Lavavasos de barra como campo independiente. Pendiente §2.2 (conectar al motor con cifras IDAE). -->
 <div class="row">
   <div class="field"><label>Lavavasos (barra)</label><select id="lavavasos" onchange="toggleLavavasos()"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
 </div>
@@ -413,7 +432,7 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 <div class="row">
   <div class="field"><label>Aislamiento de la caldera</label><select id="aislamiento"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
 </div>
-<!-- B.3 (v3.0 Hito C) — Bandera CAEs maquina cafe. Visible si antiguedad <= 3 anios. Motor: TODO Jesus Q5 (coef CAEs). -->
+<!-- Bandera CAEs maquina cafe. Visible si antiguedad <= 3 anios. Pendiente §2.3: pasar a checkboxes por categoria. -->
 <div class="row" id="row_caes_maq_cafe">
   <div class="field"><label>Bonificación CAEs (máquina café)</label>
     <div class="checkbox-group">
@@ -432,7 +451,6 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 </div>
 <div class="row">
   <div class="field"><label>Servicio de azúcar</label><select id="azucar"><option value="libre">Barra libre</option><option value="controlado">Controlado</option><option value="nosabe">NS / NC</option></select></div>
-  <div class="field"><label>Jarabes / Chai</label><select id="insourcing"><option value="compra">Compra todo hecho</option><option value="hace">Hace casero</option><option value="mixto">Mixto</option><option value="nosabe">NS / NC</option></select></div>
 </div>
 <div class="row triple">
   <div class="field"><label>Compras de emergencia</label><select id="compras_ext"><option value="nunca">Nunca</option><option value="aveces">A veces</option><option value="frecuente">Frecuente</option><option value="nosabe">NS / NC</option></select></div>
@@ -569,7 +587,6 @@ const inputs={
   tecnica_leche:val('tecnica_leche'),
   dosificacion:val('dosificacion'),
   azucar:val('azucar'),
-  insourcing:val('insourcing'),
   compras_ext:val('compras_ext'),
   tamper_auto:val('tamper_auto'),
   espumador_auto:val('espumador_auto'),
@@ -582,6 +599,29 @@ const inputs={
   climatizacion:val('climatizacion'),
   camaras_conserv:num('camaras_conserv'),
   camaras_congel:num('camaras_congel'),
+  // §2.1 (v3.0-gamma 2026-06-01) — Frio granular: inputs por categoria n+kW+h/dia.
+  // Si kW o h vienen vacios (NaN -> 0), el motor aplica el default conservador de
+  // FRIO_DEFAULTS (kW promedio considera duty cycle, no potencia pico).
+  botelleros_n:num('botelleros_n'),
+  botelleros_kw:num('botelleros_kw'),
+  botelleros_h:num('botelleros_h'),
+  mesas_frias_n:num('mesas_frias_n'),
+  mesas_frias_kw:num('mesas_frias_kw'),
+  mesas_frias_h:num('mesas_frias_h'),
+  congeladores_n:num('congeladores_n'),
+  congeladores_kw:num('congeladores_kw'),
+  congeladores_h:num('congeladores_h'),
+  neveras_n:num('neveras_n'),
+  neveras_kw:num('neveras_kw'),
+  neveras_h:num('neveras_h'),
+  abatidor_n:num('abatidor_n'),
+  abatidor_kw:num('abatidor_kw'),
+  abatidor_h:num('abatidor_h'),
+  // 3 checkboxes factor mantenimiento (acumulativo hasta +30%). Si los 3 estan
+  // sin marcar, el motor deriva el factor desde mant_preventivo.
+  condensador_sucio:document.getElementById('frio_condensador_sucio').checked,
+  cercania_calor:document.getElementById('frio_cercania_calor').checked,
+  apertura_puertas:document.getElementById('frio_apertura_puertas').checked,
   lavaplatos:val('lavaplatos'),
   maq_hielo:val('maq_hielo'),
   perlizadores:val('perlizadores'),
