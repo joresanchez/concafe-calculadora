@@ -1,12 +1,12 @@
-# HORECA Manager
+# Horeca Energy & Business Intelligence AI
 
-Calculadora-semáforo de rentabilidad para locales HORECA. HTML estático autocontenido + motor JS puro.
+Auditoría de eficiencia energética + CAEs para locales HORECA con semáforo de garantía. HTML estático autocontenido + motor JS puro.
 
 ## Producción
 
-https://horeca.jore.es
+https://joresanchez.github.io/concafe-calculadora/
 
-Hostinger Business, auto-deploy desde la rama `main`.
+GitHub Pages, auto-deploy desde la rama `main`.
 
 ## Archivos
 
@@ -18,4 +18,4 @@ Hostinger Business, auto-deploy desde la rama `main`.
 
 ## Estado
 
-v3.0-alpha (mayo 2026). Motor calibrado contra el documento de referencia del experto en eficiencia HORECA.
+v3.0-beta (junio 2026). Motor recalibrado tras reunión con el experto en eficiencia HORECA (2026-05-29). Pivote estratégico hacia eficiencia energética + Créditos de Ahorro al Consumo (CAEs).
