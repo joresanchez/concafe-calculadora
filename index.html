@@ -129,11 +129,62 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 .btn-reset{display:block;width:100%;padding:11px;background:none;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#777;font-size:.82rem;cursor:pointer;margin-top:14px;transition:all .2s}
 .btn-reset:hover{border-color:var(--gold);color:var(--gold)}
 
+/* === §2.4 CAEs UI (v3.0-gamma final, 2026-06-02) ===
+   Tabla de equipos con 2 checkboxes (antiguedad>5 = sustitucion, renovado<3 con
+   factura = retroactivo) + override de inversion. Exclusion mutua y disabled si
+   n=0 se gestionan en JS via onCaeChange y actualizarCAEDisponibilidad. */
+.cae-row{display:grid;grid-template-columns:150px 1fr 1fr 90px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.04)}
+.cae-row:last-of-type{border-bottom:none}
+.cae-name{font-size:.78rem;font-weight:500;color:var(--dark)}
+.cae-row.disabled .cae-name{color:#bbb}
+.cae-cb{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;color:var(--gun);cursor:pointer;line-height:1.3}
+.cae-cb input[type="checkbox"]{width:13px;height:13px;margin:0;cursor:pointer;accent-color:var(--gold);flex-shrink:0}
+.cae-cb input[type="checkbox"]:disabled{cursor:not-allowed;opacity:.3}
+.cae-cb.disabled{color:#bbb;cursor:not-allowed}
+.cae-inv{padding:5px 6px;font-size:.74rem;border:1px solid var(--plat);border-radius:4px;text-align:right;font-family:'Inter',sans-serif;width:100%}
+.cae-inv:disabled{background:#f5f5f5;color:#bbb;cursor:not-allowed}
+.cae-hint{font-size:.72rem;color:var(--gun);margin:6px 0 10px;line-height:1.5}
+
+/* === §2.4 CAEs OUTPUT (v3.0-gamma final, 2026-06-02) ===
+   Dos cuadros separados (CAE + Renting) + tabla 60 meses + saldo. Solo se renderiza
+   cuando r.hay_cae_marcado === true. Misma estetica que la tarjeta principal del
+   semaforo (fondo dark, acentos dorados) para mantener jerarquia visual coherente. */
+.cae-output{display:none;margin-top:10px}
+.cae-output.show{display:block;animation:fadeUp .4s ease}
+.cae-card{background:var(--dark);border-radius:14px;padding:20px 18px;margin-bottom:10px;color:var(--plat)}
+.cae-card-title{font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;border-bottom:1px solid rgba(201,169,97,.25);padding-bottom:8px}
+.cae-card-body{font-size:.82rem}
+.cae-detail-line{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;color:#999;border-bottom:1px solid rgba(255,255,255,.04);gap:10px}
+.cae-detail-line:last-child{border:none}
+.cae-detail-name{flex:1}
+.cae-detail-name b{color:var(--plat);font-weight:500}
+.cae-detail-meta{font-size:.7rem;color:#666;margin-top:2px;display:block}
+.cae-detail-amount{font-family:'Poppins',sans-serif;font-weight:600;color:var(--plat);white-space:nowrap;font-size:.9rem}
+.cae-card-total{margin-top:14px;padding-top:12px;border-top:1px solid rgba(201,169,97,.25);font-family:'Poppins',sans-serif;display:flex;justify-content:space-between;align-items:baseline}
+.cae-card-total .label{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:#aaa;font-weight:500}
+.cae-card-total .amount{font-weight:700;color:var(--gold);font-size:1.25rem}
+.cae-card-sub{font-size:.7rem;color:#666;margin-top:8px;font-style:italic;line-height:1.4}
+.cae-renting{width:100%;border-collapse:collapse;margin:0;font-size:.85rem}
+.cae-renting td{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.cae-renting td.label{color:#aaa}
+.cae-renting td.amount{text-align:right;font-family:'Poppins',sans-serif;font-weight:600;color:var(--plat);white-space:nowrap}
+.cae-renting tr.fila-saldo td{padding:14px 0 4px;border-top:1px solid rgba(201,169,97,.25);border-bottom:none}
+.cae-renting tr.fila-saldo td.label{color:var(--white);font-weight:600;font-size:.88rem}
+.cae-renting tr.fila-saldo td.amount{font-size:1.2rem;color:var(--gold)}
+.cae-renting-saldo{margin-top:14px;padding:12px 14px;background:rgba(201,169,97,.08);border-radius:8px;text-align:center;font-size:.82rem;color:var(--gold);line-height:1.5}
+.cae-renting-saldo b{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.05rem;display:block;margin-bottom:2px}
+.cae-renting-saldo.warn{background:rgba(229,161,0,.12);color:#F0B429}
+
 /* Responsive */
 @media(max-width:480px){
   .row.triple{grid-template-columns:1fr 1fr}
   .row.triple .field:last-child:nth-child(odd){grid-column:span 2}
   .result-card{padding:20px 14px}
+  /* CAE: en movil, fila por columna (nombre arriba, checkboxes apilados, importe abajo). */
+  .cae-row{grid-template-columns:1fr;gap:4px;padding:10px 0}
+  .cae-name{font-weight:600;margin-bottom:2px;font-size:.82rem}
+  .cae-cb{font-size:.76rem}
+  .cae-inv{width:100%}
 }
 </style>
 </head>
@@ -301,14 +352,9 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   </div>
 </div>
 
-<!-- Bandera CAEs refrigeracion. Pendiente §2.3: pasar a checkboxes antiguedad>5/renovado<3 por categoria. -->
-<div class="row">
-  <div class="field"><label>Bonificación CAEs (refrigeración)</label>
-    <div class="checkbox-group">
-      <label><input type="checkbox" id="caes_frio"> Algún equipo de refrigeración ≤ 3 años con CAEs aplicados / aplicables</label>
-    </div>
-  </div>
-</div>
+<!-- Macro checkbox CAEs refrigeracion eliminado v3.0-gamma final (2026-06-02):
+     sustituido por checkboxes granulares antiguedad>5 / renovado<3 por equipo en
+     el BLOQUE 9 CAEs al final del formulario. Decision Jore §3 de arquitectura. -->
 
 <!-- Cocina detallada. Motor pendiente §2.2 (consumo por fuego, freidora, equipo gas, con cifras IDAE). -->
 <div class="sub-bloque-title">Cocina</div>
@@ -321,13 +367,9 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Equipos a gas (nº)</label><input type="number" id="cocina_gas_equipos" placeholder="Ej: 2" min="0"></div>
   <div class="field"><label>Consumo gas (kWh/día o m³/día)</label><input type="number" id="cocina_gas_consumo" placeholder="Ej: 10" step="0.5" min="0"><div class="hint">Si lo conoce; vacío = NS</div></div>
 </div>
-<div class="row">
-  <div class="field"><label>Bonificación CAEs (cocina)</label>
-    <div class="checkbox-group">
-      <label><input type="checkbox" id="caes_cocina"> Algún equipo de cocina ≤ 3 años con CAEs aplicados / aplicables</label>
-    </div>
-  </div>
-</div>
+<!-- Macro checkbox CAEs cocina eliminado v3.0-gamma final (2026-06-02):
+     sustituido por checkboxes granulares antiguedad>5 / renovado<3 por equipo en
+     el BLOQUE 9 CAEs al final del formulario. Decision Jore §3 de arquitectura. -->
 
 <!-- Salamandra (horno superior) y Mesas calientes. Patron n+kW+h: n=0 si no tiene. -->
 <div class="sub-bloque-title">Otros aparatos eléctricos</div>
@@ -420,7 +462,7 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 <div class="row triple">
   <div class="field"><label>Tipo de máquina</label><select id="tipo_maquina"><option value="compacta">1 Grupo (Compacta)</option><option value="2g" selected>2 Grupos</option><option value="3g">3 Grupos</option><option value="multi">Multiboiler</option></select></div>
   <div class="field"><label>Nº de máquinas</label><input type="number" id="num_maquinas" value="1" min="1" max="5"></div>
-  <div class="field"><label>Antigüedad de máquina</label><select id="antiguedad_maq" onchange="toggleCaesMaqCafe()"><option value="10">&gt;10 años</option><option value="7">5-10 años</option><option value="3" selected>2-5 años</option><option value="1">&lt;2 años</option></select></div>
+  <div class="field"><label>Antigüedad de máquina</label><select id="antiguedad_maq"><option value="10">&gt;10 años</option><option value="7">5-10 años</option><option value="3" selected>2-5 años</option><option value="1">&lt;2 años</option></select></div>
 </div>
 <div class="row triple">
   <div class="field"><label>Aislamiento de la caldera</label><select id="aislamiento"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
@@ -431,14 +473,9 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>¿Se apaga la máquina por la noche?</label><select id="maquina_apagado"><option value="">Seleccionar...</option><option value="si">Sí</option><option value="no">No</option><option value="nosabe">NS / NC</option></select></div>
   <div class="field"><label>¿Tiene chaqueta térmica en la caldera?</label><select id="maquina_chaqueta"><option value="">Seleccionar...</option><option value="si">Sí</option><option value="no">No</option><option value="nosabe">NS / NC</option></select></div>
 </div>
-<!-- Bandera CAEs maquina cafe. Visible si antiguedad <= 3 anios. Pendiente §2.3: pasar a checkboxes por categoria. -->
-<div class="row" id="row_caes_maq_cafe">
-  <div class="field"><label>Bonificación CAEs (máquina café)</label>
-    <div class="checkbox-group">
-      <label><input type="checkbox" id="caes_maq_cafe"> Máquina ≤ 3 años con CAEs aplicados / aplicables</label>
-    </div>
-  </div>
-</div>
+<!-- Macro checkbox CAEs maquina cafe eliminado v3.0-gamma final (2026-06-02):
+     sustituido por checkboxes granulares antiguedad>5 / renovado<3 en el BLOQUE 9
+     CAEs al final del formulario. Decision Jore §3 de arquitectura. -->
 </div>
 
 <!-- BLOQUE 7 (era C) — Operativa de producto. Renumerado y movido al final. -->
@@ -462,6 +499,151 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Sistema de comandas</label><select id="comandas"><option value="digital">Digital (app/tablet)</option><option value="voz">Por voz</option><option value="papel">Papel</option><option value="nosabe">NS / NC</option></select><div class="hint">Cómo registra el camarero los pedidos del cliente</div></div>
 </div>
 </div>
+
+<!-- BLOQUE 9 NUEVO — CAEs y Renting Tecnologico (v3.0-gamma final, 2026-06-02).
+     Sustituye los 3 macro checkboxes anteriores (caes_frio/cocina/maq_cafe). Por
+     cada equipo, dos casillas:
+       > 5 anios       -> sustitucion futura. Genera CAE futuro + inversion (catalogo
+                          orientativo, override por cliente).
+       Renovado < 3a   -> CAE retroactivo (asume 1,5 anios transcurridos, vida util
+                          restante = vida - 1.5). Validar Jesus miercoles 03/06.
+     Reglas (gestionadas en JS):
+       - Si marca old, deshabilita renew del mismo equipo (y al reves).
+       - Si n=0 para esa categoria, ambos checkboxes deshabilitados.
+       - Si nadie marca nada, el cuadro CAE no se renderiza en el output.
+     Precio CAE motor: 0,10 EUR/kWh (decision Jore, conservador vs 0,12 Jesus). -->
+<details class="bloque bloque-collapsible" open id="bloque_cae">
+<summary class="bloque-title"><span class="bloque-num">9</span>CAEs · Repsol · Renting tecnológico</summary>
+<div class="bloque-content">
+<div class="cae-hint">
+  Por cada equipo, marca su antigüedad. Los equipos &gt; 5 años pasan a propuesta de sustitución (CAE futuro, Repsol paga al renovar). Los equipos renovados &lt; 3 años con factura generan CAE retroactivo. Si no rellenas el coste estimado, usamos el orientativo de catálogo (editable).
+</div>
+
+<div class="sub-bloque-title">Refrigeración</div>
+<div class="cae-row" data-eq="botellero">
+  <span class="cae-name">Botellero</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_botellero_old" onchange="onCaeChange('botellero','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_botellero_renew" onchange="onCaeChange('botellero','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_botellero_inversion" class="cae-inv" placeholder="800 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="mesa_fria">
+  <span class="cae-name">Mesa fría</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_mesa_fria_old" onchange="onCaeChange('mesa_fria','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_mesa_fria_renew" onchange="onCaeChange('mesa_fria','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_mesa_fria_inversion" class="cae-inv" placeholder="1200 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="congelador">
+  <span class="cae-name">Congelador</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_congelador_old" onchange="onCaeChange('congelador','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_congelador_renew" onchange="onCaeChange('congelador','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_congelador_inversion" class="cae-inv" placeholder="800 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="nevera">
+  <span class="cae-name">Nevera</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_nevera_old" onchange="onCaeChange('nevera','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_nevera_renew" onchange="onCaeChange('nevera','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_nevera_inversion" class="cae-inv" placeholder="800 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="abatidor">
+  <span class="cae-name">Abatidor</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_abatidor_old" onchange="onCaeChange('abatidor','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_abatidor_renew" onchange="onCaeChange('abatidor','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_abatidor_inversion" class="cae-inv" placeholder="3500 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="camara_conserv">
+  <span class="cae-name">Cámara conservación</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_camara_conserv_old" onchange="onCaeChange('camara_conserv','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_camara_conserv_renew" onchange="onCaeChange('camara_conserv','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_camara_conserv_inversion" class="cae-inv" placeholder="4500 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="camara_congel">
+  <span class="cae-name">Cámara congelación</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_camara_congel_old" onchange="onCaeChange('camara_congel','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_camara_congel_renew" onchange="onCaeChange('camara_congel','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_camara_congel_inversion" class="cae-inv" placeholder="6000 €" min="0" step="50">
+</div>
+
+<div class="sub-bloque-title">Cocina</div>
+<div class="cae-row" data-eq="fuegos">
+  <span class="cae-name">Fuegos eléctricos</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_fuegos_old" onchange="onCaeChange('fuegos','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_fuegos_renew" onchange="onCaeChange('fuegos','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_fuegos_inversion" class="cae-inv" placeholder="1500 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="freidora">
+  <span class="cae-name">Freidora</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_freidora_old" onchange="onCaeChange('freidora','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_freidora_renew" onchange="onCaeChange('freidora','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_freidora_inversion" class="cae-inv" placeholder="1200 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="salamandra">
+  <span class="cae-name">Salamandra</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_salamandra_old" onchange="onCaeChange('salamandra','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_salamandra_renew" onchange="onCaeChange('salamandra','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_salamandra_inversion" class="cae-inv" placeholder="1000 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="mesas_calientes">
+  <span class="cae-name">Mesas calientes</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_mesas_calientes_old" onchange="onCaeChange('mesas_calientes','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_mesas_calientes_renew" onchange="onCaeChange('mesas_calientes','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_mesas_calientes_inversion" class="cae-inv" placeholder="900 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="gas">
+  <span class="cae-name">Equipos a gas</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_gas_old" onchange="onCaeChange('gas','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_gas_renew" onchange="onCaeChange('gas','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_gas_inversion" class="cae-inv" placeholder="2000 €" min="0" step="50">
+</div>
+
+<div class="sub-bloque-title">Hielo y máquina de café</div>
+<div class="cae-row" data-eq="hielo">
+  <span class="cae-name">Máquina de hielo</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_hielo_old" onchange="onCaeChange('hielo','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_hielo_renew" onchange="onCaeChange('hielo','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_hielo_inversion" class="cae-inv" placeholder="3500 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="maq_cafe">
+  <span class="cae-name">Máquina de café</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_maq_cafe_old" onchange="onCaeChange('maq_cafe','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_maq_cafe_renew" onchange="onCaeChange('maq_cafe','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_maq_cafe_inversion" class="cae-inv" placeholder="5500 €" min="0" step="50">
+</div>
+
+<div class="sub-bloque-title">Iluminación y climatización</div>
+<div class="cae-row" data-eq="iluminacion">
+  <span class="cae-name">Iluminación</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_iluminacion_old" onchange="onCaeChange('iluminacion','old')"> Bombillas no LED</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_iluminacion_renew" onchange="onCaeChange('iluminacion','renew')"> Cambié a LED &lt; 3 a · factura</label>
+  <input type="number" id="cae_iluminacion_inversion" class="cae-inv" placeholder="2000 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="climatizacion">
+  <span class="cae-name">Climatización</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_climatizacion_old" onchange="onCaeChange('climatizacion','old')"> AC antiguo (&gt; 5 a)</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_climatizacion_renew" onchange="onCaeChange('climatizacion','renew')"> Aerotermia &lt; 3 a · factura</label>
+  <input type="number" id="cae_climatizacion_inversion" class="cae-inv" placeholder="16000 €" min="0" step="100">
+</div>
+
+<div class="sub-bloque-title">Lavado y movilidad</div>
+<div class="cae-row" data-eq="lavavasos">
+  <span class="cae-name">Lavavasos</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_lavavasos_old" onchange="onCaeChange('lavavasos','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_lavavasos_renew" onchange="onCaeChange('lavavasos','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_lavavasos_inversion" class="cae-inv" placeholder="550 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="lavavajillas">
+  <span class="cae-name">Lavavajillas</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_lavavajillas_old" onchange="onCaeChange('lavavajillas','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_lavavajillas_renew" onchange="onCaeChange('lavavajillas','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_lavavajillas_inversion" class="cae-inv" placeholder="720 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="montacargas">
+  <span class="cae-name">Montacargas</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_montacargas_old" onchange="onCaeChange('montacargas','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_montacargas_renew" onchange="onCaeChange('montacargas','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_montacargas_inversion" class="cae-inv" placeholder="5000 €" min="0" step="100">
+</div>
+</div>
+</details>
 
 <!-- BLOQUE 8 (era F) — Configuracion financiera. Renumerado + plegable.
      Rebranding HORECA Manager: <details> cerrado por defecto. El cliente final
@@ -510,6 +692,30 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div id="msg-comercial" class="msg-comercial"></div>
   <button class="btn-reset" onclick="resetear()">Nueva consulta</button>
 </div>
+
+<!-- CAE OUTPUT (v3.0-gamma final, 2026-06-02).
+     Dos cuadros adicionales que solo se renderizan si r.hay_cae_marcado === true.
+     1. Bolsa CAE Repsol: detalle por equipo + total 5 anios.
+     2. Renting tecnologico 60 meses: 5 filas (inversion + cuota + ahorro factura
+        + bolsa CAE prorrateada + saldo neto) + saldo total 5 anios.
+     Si nadie marca CAE, los cuadros no aparecen y la calculadora sigue siendo
+     una auditoria energetica clasica. Decision 3 de Jore. -->
+<div class="cae-output" id="cae-output">
+  <div class="cae-card">
+    <div class="cae-card-title">€€€ Repsol vía CAE · 5 años bolsa estimada</div>
+    <div class="cae-card-body" id="cae-detail-list"></div>
+    <div class="cae-card-total">
+      <span class="label">Bolsa CAE total</span>
+      <span class="amount" id="cae-total-amount"></span>
+    </div>
+    <div class="cae-card-sub">Pagado por Repsol vía sujeto delegado al cerrar la operación. Sin riesgo para el cliente.</div>
+  </div>
+  <div class="cae-card">
+    <div class="cae-card-title">Renting tecnológico · 60 meses</div>
+    <table class="cae-renting" id="cae-renting"></table>
+    <div class="cae-renting-saldo" id="cae-saldo"></div>
+  </div>
+</div>
 </div>
 
 </div>
@@ -529,6 +735,108 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 function val(id){return document.getElementById(id).value}
 function num(id){return parseFloat(document.getElementById(id).value)||0}
 function fmt(n){return Math.round(n).toLocaleString('es-ES')+' €'}
+
+/* §2.4 CAEs (v3.0-gamma final, 2026-06-02). Las 19 categorias del bloque 9
+   sincronizadas con CAE_CFG y CAE_NOMBRES del motor. Orden fijo.
+   Las reglas de disponibilidad (deshabilitar si n=0 etc.) viven en
+   actualizarCAEDisponibilidad(); la exclusion mutua en onCaeChange(). */
+const CAE_EQUIPOS_UI = ['botellero','mesa_fria','congelador','nevera','abatidor','camara_conserv','camara_congel','fuegos','freidora','salamandra','mesas_calientes','lavavasos','montacargas','gas','hielo','maq_cafe','iluminacion','climatizacion','lavavajillas'];
+
+// Exclusion mutua: marcar old desmarca y deshabilita renew, y viceversa. Defendible
+// para Repsol (no se reclama dos veces sobre el mismo equipo).
+function onCaeChange(eq, tipo){
+  const cbOld=document.getElementById('cae_'+eq+'_old');
+  const cbRenew=document.getElementById('cae_'+eq+'_renew');
+  if(tipo==='old'  && cbOld.checked)   cbRenew.checked=false;
+  if(tipo==='renew'&& cbRenew.checked) cbOld.checked=false;
+  cbRenew.disabled=cbOld.checked;
+  cbOld.disabled=cbRenew.checked;
+}
+
+// Disponibilidad: si el equipo no esta declarado (n=0 o equivalente) los dos
+// checkboxes quedan deshabilitados. Se llama al cargar y en cada cambio
+// relevante en bloques 3 (frio), 7 (cocina/lavado) y 1 (montacargas).
+function actualizarCAEDisponibilidad(){
+  const reglas={
+    botellero:       function(){return num('botelleros_n')>0;},
+    mesa_fria:       function(){return num('mesas_frias_n')>0;},
+    congelador:      function(){return num('congeladores_n')>0;},
+    nevera:          function(){return num('neveras_n')>0;},
+    abatidor:        function(){return num('abatidor_n')>0;},
+    camara_conserv:  function(){return num('camaras_conserv')>0;},
+    camara_congel:   function(){return num('camaras_congel')>0;},
+    fuegos:          function(){return num('cocina_fuegos')>0;},
+    freidora:        function(){return num('cocina_freidoras_n')>0;},
+    salamandra:      function(){return num('salamandra_n')>0;},
+    mesas_calientes: function(){return num('mesas_calientes_n')>0;},
+    gas:             function(){return num('cocina_gas_equipos')>0||num('cocina_gas_consumo')>0;},
+    lavavasos:       function(){return num('lavavasos_n')>0;},
+    montacargas:     function(){return num('montacargas_kw')>0||num('montacargas_horas')>0;},
+    hielo:           function(){var v=val('maq_hielo');return v==='antigua'||v==='nueva';},
+    lavavajillas:    function(){var v=val('lavaplatos');return v!=='no'&&v!=='nosabe';},
+    maq_cafe:        function(){return true;},
+    iluminacion:     function(){return true;},
+    climatizacion:   function(){return true;}
+  };
+  CAE_EQUIPOS_UI.forEach(function(eq){
+    var ok=reglas[eq]();
+    var row=document.querySelector('.cae-row[data-eq="'+eq+'"]');
+    if(!row) return;
+    row.classList.toggle('disabled',!ok);
+    var cbOld=document.getElementById('cae_'+eq+'_old');
+    var cbRenew=document.getElementById('cae_'+eq+'_renew');
+    var inv=document.getElementById('cae_'+eq+'_inversion');
+    if(!ok){
+      cbOld.checked=false; cbRenew.checked=false;
+      cbOld.disabled=true; cbRenew.disabled=true; inv.disabled=true;
+    } else {
+      inv.disabled=false;
+      cbOld.disabled=cbRenew.checked;
+      cbRenew.disabled=cbOld.checked;
+    }
+  });
+}
+
+// Render de los 2 cuadros CAE en el output. Solo se ejecuta si r.hay_cae_marcado.
+// CAE_NOMBRES viene del motor (window.CAE_NOMBRES).
+function renderCaeOutput(r){
+  var outBlock=document.getElementById('cae-output');
+  if(!r.hay_cae_marcado){outBlock.classList.remove('show');return;}
+  outBlock.classList.add('show');
+  var CAE_NAMES=window.CAE_NOMBRES||{};
+  var list=document.getElementById('cae-detail-list');
+  list.innerHTML='';
+  Object.keys(r.cae_equipos).forEach(function(eq){
+    var d=r.cae_equipos[eq];
+    if(d.tipo===null||d.importe===0) return;
+    var tipoTxt=d.tipo==='futuro'?'sustitución':'retroactivo';
+    var pctTxt=Math.round(d.pct*100)+'% ahorro';
+    var html='<div class="cae-detail-line">'+
+      '<div class="cae-detail-name"><b>'+(CAE_NAMES[eq]||eq)+'</b>'+
+        '<span class="cae-detail-meta">'+tipoTxt+' · '+d.anios.toFixed(1)+' años · '+pctTxt+' · '+Math.round(d.ahorro_kwh).toLocaleString('es-ES')+' kWh/año</span></div>'+
+      '<span class="cae-detail-amount">'+fmt(Math.round(d.importe))+'</span></div>';
+    list.insertAdjacentHTML('beforeend',html);
+  });
+  document.getElementById('cae-total-amount').textContent=fmt(Math.round(r.CAE_total_5y));
+  var cuotaM=Math.round(r.cuota_renting_mes);
+  var ahoF=Math.round(r.ahorro_factura_mes);
+  var caeM=Math.round(r.cae_prorrateado_mes);
+  var saldo=Math.round(r.saldo_neto_mes);
+  document.getElementById('cae-renting').innerHTML=
+    '<tr><td class="label">Inversión equipos nuevos (catálogo)</td><td class="amount">'+fmt(Math.round(r.inversion_total))+'</td></tr>'+
+    '<tr><td class="label">Cuota renting mensual (60 meses)</td><td class="amount" style="color:#E07A6F">-'+fmt(cuotaM)+' /mes</td></tr>'+
+    '<tr><td class="label">Ahorro factura mensual (HARD / 12)</td><td class="amount" style="color:#7ECF8C">+'+fmt(ahoF)+' /mes</td></tr>'+
+    '<tr><td class="label">Bolsa CAE prorrateada (60 meses)</td><td class="amount" style="color:#7ECF8C">+'+fmt(caeM)+' /mes</td></tr>'+
+    '<tr class="fila-saldo"><td class="label">Saldo neto a favor del cliente</td><td class="amount">'+(saldo>=0?'+':'')+fmt(saldo)+' /mes</td></tr>';
+  var saldoBox=document.getElementById('cae-saldo');
+  if(saldo>=0){
+    saldoBox.className='cae-renting-saldo';
+    saldoBox.innerHTML='<b>Saldo total 5 años: +'+fmt(Math.round(r.saldo_neto_5y))+'</b>Operación autopagable desde el mes 1. El cliente no desembolsa: factura + CAE cubren la cuota.';
+  } else {
+    saldoBox.className='cae-renting-saldo warn';
+    saldoBox.innerHTML='<b>Saldo total 5 años: '+fmt(Math.round(r.saldo_neto_5y))+'</b>Faltan '+fmt(Math.abs(saldo))+'/mes para que el renting sea autopagable. Reduce alcance o renegocia el coeficiente.';
+  }
+}
 
 function calcular(){
 const errorEl=document.getElementById('error-msg');
@@ -659,6 +967,16 @@ const inputs={
   coef_renting:num('coef_renting')
 };
 
+// §2.4 CAEs (v3.0-gamma final, 2026-06-02). 19 equipos × 2 booleanos + 19 overrides
+// de inversion. Pasamos solo si el cliente ha marcado algo (cb.checked) o ha metido
+// un coste; en otro caso los valores por defecto del motor (0/false) hacen que el
+// bloque CAE no se renderice (decision 3 de arquitectura).
+CAE_EQUIPOS_UI.forEach(function(eq){
+  inputs['cae_'+eq+'_old']=document.getElementById('cae_'+eq+'_old').checked;
+  inputs['cae_'+eq+'_renew']=document.getElementById('cae_'+eq+'_renew').checked;
+  inputs['cae_'+eq+'_inversion']=num('cae_'+eq+'_inversion');
+});
+
 const r=calcularPuro(inputs);
 if(!r.ok){
   errorEl.textContent=r.error;
@@ -693,6 +1011,12 @@ el('desglose').innerHTML=`
 
 el('msg-comercial').className='msg-comercial '+r.mc;
 el('msg-comercial').textContent=r.msg;
+
+// §2.4 CAEs (v3.0-gamma final): render condicional. Si nadie marco nada en el
+// bloque 9, renderCaeOutput oculta el cuadro y la calculadora queda como auditoria
+// energetica clasica. Si hay marcas, aparecen los 2 cuadros (Repsol + renting).
+renderCaeOutput(r);
+
 el('output').scrollIntoView({behavior:'smooth'});
 }
 
@@ -706,13 +1030,22 @@ function toggleDiasCerrados(){const f=document.getElementById('field_dias_cerrad
    n+kW+h, siempre visibles, n=0 si no tiene. */
 function toggleContratoRestante(){const f=document.getElementById('field_contrato_restante');const v=document.getElementById('regimen_local').value;f.classList.toggle('field-hidden',v!=='alquiler')}
 function toggleNumCamarasVig(){const f=document.getElementById('field_num_camaras_vig');const v=document.getElementById('camaras_vigilancia').value;f.classList.toggle('field-hidden',v!=='si')}
-function toggleCaesMaqCafe(){const f=document.getElementById('row_caes_maq_cafe');const v=document.getElementById('antiguedad_maq').value;f.classList.toggle('field-hidden',!(v==='1'||v==='3'))}
 function toggleCocinaGas(){const f=document.getElementById('row_cocina_gas');const v=document.getElementById('cocina_tipo').value;f.classList.toggle('field-hidden',!(v==='gas'||v==='mixta'))}
 toggleDiasCerrados();
 toggleContratoRestante();
 toggleNumCamarasVig();
-toggleCaesMaqCafe();
 toggleCocinaGas();
+
+// §2.4 CAEs: listeners sobre los inputs cuyo valor activa/desactiva los checkboxes
+// CAE. Cualquier cambio en cantidades, selects de equipo o tipo de lavavajillas
+// re-evalua la disponibilidad y desmarca lo que ya no aplica.
+['botelleros_n','mesas_frias_n','congeladores_n','neveras_n','abatidor_n','camaras_conserv','camaras_congel','cocina_fuegos','cocina_freidoras_n','salamandra_n','mesas_calientes_n','cocina_gas_equipos','cocina_gas_consumo','lavavasos_n','montacargas_kw','montacargas_horas','maq_hielo','lavaplatos'].forEach(function(id){
+  var el2=document.getElementById(id);
+  if(!el2) return;
+  el2.addEventListener('input',actualizarCAEDisponibilidad);
+  el2.addEventListener('change',actualizarCAEDisponibilidad);
+});
+actualizarCAEDisponibilidad();
 </script>
 </body>
 </html>

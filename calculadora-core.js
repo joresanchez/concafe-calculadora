@@ -279,7 +279,22 @@
       kwh_abatidor + kwh_camara_conserv + kwh_camara_congel
     );
 
-    const ahorro_kwh_frio = kwh_frio_total * (1 - 1 / factorMant);
+    // §2.4 CAE — Decision 8 (Jore 2026-06-02): si el cliente marca sustitucion para
+    // un equipo de frio (cae_<x>_old), el equipo nuevo sera limpio (sin condensador
+    // sucio, sin sobreconsumo de mantenimiento). Excluimos su kWh del calculo de eFrio
+    // para evitar double-counting frente a Repsol. El ahorro del equipo nuevo se
+    // contabiliza por separado en el bloque CAE (futuro = ahorro_kwh × vida × 0,10 EUR).
+    const kwh_frio_excluido_cae = (
+      (inputs.cae_botellero_old      ? kwh_botelleros      : 0) +
+      (inputs.cae_mesa_fria_old      ? kwh_mesas_frias     : 0) +
+      (inputs.cae_congelador_old     ? kwh_congeladores    : 0) +
+      (inputs.cae_nevera_old         ? kwh_neveras         : 0) +
+      (inputs.cae_abatidor_old       ? kwh_abatidor        : 0) +
+      (inputs.cae_camara_conserv_old ? kwh_camara_conserv  : 0) +
+      (inputs.cae_camara_congel_old  ? kwh_camara_congel   : 0)
+    );
+    const kwh_frio_para_mant = Math.max(0, kwh_frio_total - kwh_frio_excluido_cae);
+    const ahorro_kwh_frio = kwh_frio_para_mant * (1 - 1 / factorMant);
     let eFrio = ahorro_kwh_frio * precioKwh;
 
     // === §2.2 Cocina + otros equipos granular (v3.0-gamma, sesion 2026-06-01) ===
@@ -482,6 +497,158 @@
       }
     }
 
+    // ========================================================================
+    // === §2.4 CAEs (v3.0-gamma final, 2026-06-02) ===========================
+    // ========================================================================
+    // Bloque de Creditos de Ahorro al Consumo. 19 equipos × 2 vias por equipo:
+    //   cae_<x>_old:    > 5 anios, propuesta de sustitucion. Genera CAE futuro
+    //                   + inversion (catalogo orientativo, override del cliente).
+    //   cae_<x>_renew:  renovado < 3 anios con factura. Genera CAE retroactivo,
+    //                   sin inversion (ya esta comprado).
+    // Si ambos marcados a la vez, prioriza old (CAE futuro = sustitucion).
+    // Si nadie marca nada, todo a 0 y la UI no renderiza el bloque (decision 3).
+    //
+    // Decisiones cerradas con Jore 2026-06-02 (las 8 de arquitectura-CAEs §8):
+    //   1. CAE retroactivo descuenta vida util ya transcurrida (1.5 anios asumidos).
+    //   2. Si cae_<frio>_old marcado, descontar kWh del calculo de eFrio (arriba).
+    //   3. Bloque CAE no se renderiza si nadie marca nada (gestion UI).
+    //   4. coef_renting unico 2,1%/mes editable (input existente).
+    //   5. Catalogo precios orientativos publicos + override por cliente.
+    //   6. Sin selector fecha factura: asumimos CAE_RETRO_YEARS = 1.5.
+    //   7. Gas via PCS 11.7 kWh/m3 (ya esta en el motor).
+    //   8. Equipo nuevo de frio tiene factor_mant = 1.00 (via exclusion en eFrio).
+
+    const CAE_EUR_KWH = 0.10;     // conservador dentro del rango oficial (caedigital 2026)
+    const CAE_RETRO_YEARS = 1.5;  // anios transcurridos asumidos en retroactivo
+
+    // Consumo anual del equipo ACTUAL (kWh/anio) por categoria. Para frio y cocina
+    // granular reutilizamos los kwh_X ya calculados arriba. Para hielo, maq_cafe,
+    // iluminacion, climatizacion y lavavajillas, derivamos ad-hoc a partir de los
+    // mismos parametros que ya alimentan ENERGIA (sin recalcular el motor).
+    let kwh_hielo_consumo;
+    if (maqHielo === 'antigua') {
+      const aforoNumCae = Math.max(0, Number(inputs.aforo) || 0);
+      if (aforoNumCae > 0) {
+        // Demanda × kWh/kg antigua (idem que §2.8 pero solo el consumo, no el delta)
+        kwh_hielo_consumo = aforoNumCae * 0.1 * diasOp * 0.5;
+      } else {
+        // Fallback equivalente al 0.80 EUR/dia fijo en kWh @ 0.28 EUR/kWh
+        kwh_hielo_consumo = (0.80 / 0.28) * diasOp;
+      }
+    } else {
+      kwh_hielo_consumo = 0;
+    }
+    const kwh_maq_cafe_consumo = (kB[tipoMaq] || 18) * fA * numMaq * diasOp;
+    let kwh_iluminacion_consumo;
+    if (importeFacturaMensual > 0) {
+      // Convertir el 8% factura a kWh/anio dividiendo por precio_kWh
+      kwh_iluminacion_consumo = (importeFacturaMensual * 12 * 0.08) / precioKwh;
+    } else {
+      // Modo granular: la base 25.2 kWh/dia × fL × ft × diasOp
+      kwh_iluminacion_consumo = 25.2 * fL * ft * diasOp;
+    }
+    const kwh_clima_consumo = (clima === 'ac_antiguo') ? 5.36 * ft * diasOp : 0;
+    let kwh_lavavajillas_consumo;
+    if (lavaplatos === 'cupula')     kwh_lavavajillas_consumo = (1.0 / 0.28) * diasOp;
+    else if (lavaplatos === 'no')    kwh_lavavajillas_consumo = (0.5 / 0.28) * diasOp;
+    else                             kwh_lavavajillas_consumo = 0;
+
+    // % de ahorro al sustituir por equipo nuevo eficiente, por categoria. Cifras
+    // conservadoras a validar con Jesus el miercoles 03/06.
+    //   30% frio comercial (clase D vs A+, fuente Mundo Hosteleria + Coreco)
+    //   25% cocina electrica (inducir vs vitroceramica)
+    //   25% maquina cafe (chaqueta + temporizador + modelo eficiente)
+    //   64% hielo (0,5 → 0,18 kWh/kg, mismas cifras §2.8)
+    //   40% climatizacion (caedigital, restaurante 200 m²)
+    //   20% lavado (estimacion sector, validar)
+    //   Iluminacion: dinamico segun bombilla predominante (75/50/0).
+    const CAE_CFG = {
+      botellero:        { kwh: kwh_botelleros,           vida: 10, pct: 0.30, precio: 800 },
+      mesa_fria:        { kwh: kwh_mesas_frias,          vida: 10, pct: 0.30, precio: 1200 },
+      congelador:       { kwh: kwh_congeladores,         vida: 10, pct: 0.30, precio: 800 },
+      nevera:           { kwh: kwh_neveras,              vida: 10, pct: 0.30, precio: 800 },
+      abatidor:         { kwh: kwh_abatidor,             vida: 10, pct: 0.30, precio: 3500 },
+      camara_conserv:   { kwh: kwh_camara_conserv,       vida: 12, pct: 0.30, precio: 4500 },
+      camara_congel:    { kwh: kwh_camara_congel,        vida: 12, pct: 0.30, precio: 6000 },
+      fuegos:           { kwh: kwh_fuegos,               vida: 12, pct: 0.25, precio: 1500 },
+      freidora:         { kwh: kwh_freidoras,            vida: 12, pct: 0.25, precio: 1200 },
+      salamandra:       { kwh: kwh_salamandra,           vida: 12, pct: 0.25, precio: 1000 },
+      mesas_calientes:  { kwh: kwh_mesas_calientes,      vida: 12, pct: 0.25, precio: 900 },
+      lavavasos:        { kwh: kwh_lavavasos,            vida: 8,  pct: 0.20, precio: 550 },
+      montacargas:      { kwh: kwh_montacargas,          vida: 12, pct: 0.25, precio: 5000 },
+      gas:              { kwh: kwh_gas,                  vida: 12, pct: 0.25, precio: 2000 },
+      hielo:            { kwh: kwh_hielo_consumo,        vida: 8,  pct: 0.64, precio: 3500 },
+      maq_cafe:         { kwh: kwh_maq_cafe_consumo,     vida: 8,  pct: 0.25, precio: 5500 },
+      iluminacion:      { kwh: kwh_iluminacion_consumo,  vida: 15, pct: null, precio: 2000 },
+      climatizacion:    { kwh: kwh_clima_consumo,        vida: 15, pct: 0.40, precio: 16000 },
+      lavavajillas:     { kwh: kwh_lavavajillas_consumo, vida: 8,  pct: 0.20, precio: 720 }
+    };
+
+    // pct de iluminacion dinamico segun bombilla predominante (la peor entre marcadas).
+    let pct_iluminacion_dinamico = 0;
+    if (Array.isArray(inputs.iluminacion_multi)) {
+      if (inputs.iluminacion_multi.indexOf('halogena') >= 0) pct_iluminacion_dinamico = 0.75;
+      else if (inputs.iluminacion_multi.indexOf('fluorescente') >= 0) pct_iluminacion_dinamico = 0.50;
+    } else if (iluminacion === 'halogena' || iluminacion === 'mixta') {
+      pct_iluminacion_dinamico = 0.75;
+    } else if (iluminacion === 'fluorescente') {
+      pct_iluminacion_dinamico = 0.50;
+    }
+
+    // Recorrer los 19 equipos y calcular CAE futuro/retroactivo por cada uno.
+    const cae_equipos = {};
+    let CAE_total_5y = 0;
+    let CAE_futuro_total = 0;
+    let CAE_retroactivo_total = 0;
+    let inversion_total = 0;
+    let hay_cae_marcado = false;
+
+    const CAE_EQUIPOS_KEYS = Object.keys(CAE_CFG);
+    for (let i = 0; i < CAE_EQUIPOS_KEYS.length; i++) {
+      const eq = CAE_EQUIPOS_KEYS[i];
+      const cfg = CAE_CFG[eq];
+      const old = !!inputs['cae_' + eq + '_old'];
+      const renew = !!inputs['cae_' + eq + '_renew'];
+      if (!old && !renew) {
+        cae_equipos[eq] = {
+          tipo: null, ahorro_kwh: 0, anios: 0, importe: 0, inversion: 0,
+          vida: cfg.vida, pct: 0, consumo_actual_kwh: cfg.kwh
+        };
+        continue;
+      }
+      hay_cae_marcado = true;
+      // Si ambos marcados, prioriza old (CAE futuro). Defendible: no se reclama dos
+      // veces sobre el mismo equipo.
+      const tipo = old ? 'futuro' : 'retroactivo';
+      const pct = (eq === 'iluminacion') ? pct_iluminacion_dinamico : cfg.pct;
+      const ahorro_kwh = cfg.kwh * pct;
+      const anios = (tipo === 'futuro') ? cfg.vida : Math.max(0, cfg.vida - CAE_RETRO_YEARS);
+      const importe = ahorro_kwh * anios * CAE_EUR_KWH;
+      // Inversion: solo si es sustitucion futura. Override del cliente si > 0.
+      let inversion = 0;
+      if (tipo === 'futuro') {
+        const override = Number(inputs['cae_' + eq + '_inversion']) || 0;
+        inversion = override > 0 ? override : cfg.precio;
+      }
+      cae_equipos[eq] = {
+        tipo: tipo, ahorro_kwh: ahorro_kwh, anios: anios,
+        importe: importe, inversion: inversion,
+        vida: cfg.vida, pct: pct, consumo_actual_kwh: cfg.kwh
+      };
+      CAE_total_5y += importe;
+      if (tipo === 'futuro') CAE_futuro_total += importe;
+      else CAE_retroactivo_total += importe;
+      inversion_total += inversion;
+    }
+
+    // Renting + saldos. coefRenting ya esta normalizado a fraccion (/100) en linea 78.
+    // ahorro_factura_mes usa el HARD ya ajustado (eFrio descontado en linea ~290).
+    const cuota_renting_mes = inversion_total * coefRenting;
+    const ahorro_factura_mes = HARD / 12;
+    const cae_prorrateado_mes = CAE_total_5y / 60;
+    const saldo_neto_mes = ahorro_factura_mes + cae_prorrateado_mes - cuota_renting_mes;
+    const saldo_neto_5y = saldo_neto_mes * 60;
+
     return {
       ok: true,
       // Resultado primario (semáforo)
@@ -500,13 +667,21 @@
       // Rangos
       hMin, hMax, hSeg,
       // §2.1 desglose frio granular (v3.0-gamma)
-      kwh_frio_total, ahorro_kwh_frio, factorMant,
+      kwh_frio_total, kwh_frio_excluido_cae, kwh_frio_para_mant, ahorro_kwh_frio, factorMant,
       kwh_botelleros, kwh_mesas_frias, kwh_congeladores, kwh_neveras,
       kwh_abatidor, kwh_camara_conserv, kwh_camara_congel,
       // §2.2 desglose cocina granular (v3.0-gamma) — consumo solo, ahorro=0 hasta §2.4 CAEs
       kwh_cocina_total, eCocina,
       kwh_fuegos, kwh_freidoras, kwh_salamandra,
       kwh_mesas_calientes, kwh_montacargas, kwh_lavavasos, kwh_gas,
+      // §2.4 CAEs (v3.0-gamma final, 2026-06-02)
+      hay_cae_marcado,
+      CAE_total_5y, CAE_futuro_total, CAE_retroactivo_total,
+      inversion_total, cuota_renting_mes, ahorro_factura_mes,
+      cae_prorrateado_mes, saldo_neto_mes, saldo_neto_5y,
+      cae_equipos,
+      kwh_hielo_consumo, kwh_maq_cafe_consumo, kwh_iluminacion_consumo,
+      kwh_clima_consumo, kwh_lavavajillas_consumo,
       // Variables derivadas (útiles para diagnosticar tests)
       diasOp, ft, precioCafe, plazoRenting, coefRenting,
     };
@@ -548,12 +723,39 @@
     fin:'Bajada del precio del cafe (modelo cesion)'
   };
 
+  // === CAE_NOMBRES (v3.0-gamma final, 2026-06-02, §2.4) ===
+  // Mapa interno -> humano de los 19 equipos del bloque CAE. Lo usa el render de
+  // UI para etiquetar las filas del cuadro "Repsol via CAE" sin hardcodear strings
+  // en el HTML. Mantener sincronizado con CAE_CFG en calcularPuro.
+  const CAE_NOMBRES = {
+    botellero:       'Botellero',
+    mesa_fria:       'Mesa fria',
+    congelador:      'Congelador',
+    nevera:          'Nevera',
+    abatidor:        'Abatidor',
+    camara_conserv:  'Camara de conservacion',
+    camara_congel:   'Camara de congelacion',
+    fuegos:          'Fuegos electricos',
+    freidora:        'Freidora',
+    salamandra:      'Salamandra',
+    mesas_calientes: 'Mesas calientes',
+    lavavasos:       'Lavavasos',
+    montacargas:     'Montacargas',
+    gas:             'Equipos a gas',
+    hielo:           'Maquina de hielo',
+    maq_cafe:        'Maquina de cafe',
+    iluminacion:     'Iluminacion',
+    climatizacion:   'Climatizacion',
+    lavavajillas:    'Lavavajillas'
+  };
+
   // Exponer en navegador (window) y Node (module.exports) sin tocar al otro.
   root.calcularPuro = calcularPuro;
-  root.calculadoraCore = { calcularPuro, fmt, NOMBRES_LEGIBLES };
+  root.calculadoraCore = { calcularPuro, fmt, NOMBRES_LEGIBLES, CAE_NOMBRES };
   root.NOMBRES_LEGIBLES = NOMBRES_LEGIBLES;
+  root.CAE_NOMBRES = CAE_NOMBRES;
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { calcularPuro, fmt, NOMBRES_LEGIBLES };
+    module.exports = { calcularPuro, fmt, NOMBRES_LEGIBLES, CAE_NOMBRES };
   }
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

@@ -18,4 +18,4 @@ GitHub Pages, auto-deploy desde la rama `main`.
 
 ## Estado
 
-v3.0-beta (junio 2026). Motor recalibrado tras reunión con el experto en eficiencia HORECA (2026-05-29). Pivote estratégico hacia eficiencia energética + Créditos de Ahorro al Consumo (CAEs).
+v3.0-gamma final (junio 2026). Motor recalibrado tras la reunión con el experto en eficiencia HORECA (2026-05-29) + ciclo gamma con frío granular, cocina granular, hielo con aforo, iluminación % factura, apagado nocturno con chaqueta térmica + bloque §2.4 CAEs con 19 equipos (sustitución prospectiva + retroactivo 3 años con factura) y tabla renting tecnológico 60 meses.
