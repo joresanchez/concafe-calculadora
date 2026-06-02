@@ -139,7 +139,7 @@
     // estabilidad de red y reparto de carga por linea, no a consumo). El input elec_tipo
     // se queda en el formulario como dato descriptivo (auditoria + ficha Repsol).
     let eElec = 0;
-    // D.12 (v3.0 Hito B) — iluminacion multi-select.
+    // D.12 (v3.0 Hito B): iluminacion multi-select.
     // Acepta array `inputs.iluminacion_multi` (formato nuevo: ['led','halogena',...]).
     // Si no llega array, ruta legacy v2.5 inalterada (string en `iluminacion`).
     // Combinacion multi: PROMEDIO ARITMETICO de los fL marcados (decision Jore
@@ -279,7 +279,7 @@
       kwh_abatidor + kwh_camara_conserv + kwh_camara_congel
     );
 
-    // §2.4 CAE — Decision 8 (Jore 2026-06-02): si el cliente marca sustitucion para
+    // §2.4 CAE / Decision 8 (Jore 2026-06-02): si el cliente marca sustitucion para
     // un equipo de frio (cae_<x>_old), el equipo nuevo sera limpio (sin condensador
     // sucio, sin sobreconsumo de mantenimiento). Excluimos su kWh del calculo de eFrio
     // para evitar double-counting frente a Repsol. El ahorro del equipo nuevo se
@@ -680,7 +680,7 @@
       kwh_frio_total, kwh_frio_excluido_cae, kwh_frio_para_mant, ahorro_kwh_frio, factorMant,
       kwh_botelleros, kwh_mesas_frias, kwh_congeladores, kwh_neveras,
       kwh_abatidor, kwh_camara_conserv, kwh_camara_congel,
-      // §2.2 desglose cocina granular (v3.0-gamma) — consumo solo, ahorro=0 hasta §2.4 CAEs
+      // §2.2 desglose cocina granular (v3.0-gamma): consumo solo, ahorro=0 hasta §2.4 CAEs
       kwh_cocina_total, eCocina,
       kwh_fuegos, kwh_freidoras, kwh_salamandra,
       kwh_mesas_calientes, kwh_montacargas, kwh_lavavasos, kwh_gas,
