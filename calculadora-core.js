@@ -432,8 +432,18 @@
     // sVe refactorizado tras reunion Jesus 2026-05-29 (CSV fila 24): la metrica original
     // "5/8 cafes extra x 1,60 EUR margen x diasOp" se reemplaza por "1h/dia ahorrada
     // x 2,50 EUR/hora trabajada x diasOp" (Jesus dixit). Solo aplica si hay cafes (proxy
-    // de actividad en barra). TODO Jore con Yemy: validar 1h/dia ahorradas y los 2,50
-    // EUR/hora como margen real (vs precio venta o coste empleado).
+    // de actividad en barra).
+    //
+    // VALIDADO 2026-06-02 contra fuentes oficiales (ver 2026-06-02_validacion-sVe.md):
+    //   - Convenio hosteleria Espana 2025-26 (camarero Nivel III) -> coste empresa ~14 EUR/h.
+    //   - Margen contributivo cafeteria (Espressa/Qamarero/Mapal) -> 12-18 EUR/h si la
+    //     hora liberada se reutiliza en venta directa.
+    //   - Formula vieja doc Jesus (5 cafes x 1,60 EUR) -> 8 EUR/h.
+    // El 2,50 EUR/h actual es ULTRA-conservador a proposito (defensibilidad Repsol) y
+    // representa MARGEN MINIMO defendible (NO coste evitado del camarero fijo, NO margen
+    // contributivo bruto). Rango defendible: 2,50-15 EUR/h segun interpretacion.
+    // Pendiente reunion Jesus 03/06: confirmar interpretacion + posible input editable
+    // en UI (margen_hora_personal con default 2,50).
     const horasAhorradasDia = 1.0;
     const margenPorHora = 2.50;
     const sVe = cafes > 0 ? horasAhorradasDia * margenPorHora * diasOp : 0;
