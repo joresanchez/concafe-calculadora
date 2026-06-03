@@ -62,7 +62,6 @@
     const camConserv = Math.max(0, inputs.camaras_conserv);
     const camCongel = Math.max(0, inputs.camaras_congel);
     const lavaplatos = inputs.lavaplatos;
-    const maqHielo = inputs.maq_hielo;
     const perlizadores = inputs.perlizadores;
     const tratAgua = inputs.tratamiento_agua;
     const manualOps = inputs.manual_ops;
@@ -364,24 +363,29 @@
     //   - Antigua: 0.5 kWh/kg hielo producido
     //   - Eficiente: 0.18 kWh/kg (felac.com, modelo bajo consumo)
     //   - Delta ahorro: 0.32 kWh/kg
-    // Si aforo = 0 (no se ha rellenado), fallback al calculo v3.0-beta para
-    // no romper goldens del harness (que no pasa aforo en baseInputs).
+    //
+    // === Refactor 2026-06-03 (reunion Jesus) ===
+    // El select maq_hielo ('antigua'/'nueva'/'no'/'nosabe') + modo aforo desaparece.
+    // Ahora dos bloques separados (refrigerada por aire + por agua) con patron
+    // uniforme n+kW+h como el resto de equipos. eHielo = 0 en HARD: el ahorro se
+    // materializa en el bloque §2.4 CAEs por sustitucion (la antiguedad la declara
+    // el auditor via los checkboxes CAE >5a o renovado<3a por tipo).
+    //
+    // Pendiente Jesus: ahorro adicional al pasar de aire->agua (eficiencia electrica
+    // +30% aprox + 1,68 L agua/kg hielo). No entra al motor todavia.
+    const HIELO_DEFAULTS = {
+      aire: { kw: 0.40, h: 24 },  // maquina convencional refrigerada por aire (sector)
+      agua: { kw: 0.28, h: 24 }   // -30% electricidad vs aire, gasta agua de red
+    };
+    const kwh_hielo_aire = consumoEquipo(
+      inputs.hielo_aire_n, inputs.hielo_aire_kw, inputs.hielo_aire_h,
+      HIELO_DEFAULTS.aire
+    );
+    const kwh_hielo_agua = consumoEquipo(
+      inputs.hielo_agua_n, inputs.hielo_agua_kw, inputs.hielo_agua_h,
+      HIELO_DEFAULTS.agua
+    );
     let eHielo = 0;
-    if (maqHielo === 'antigua') {
-      const aforo = Math.max(0, Number(inputs.aforo) || 0);
-      if (aforo > 0) {
-        const KG_PERSONA_DIA = 0.1;       // conservador, validar Jesus
-        const KWH_KG_ANTIGUA = 0.5;
-        const KWH_KG_EFICIENTE = 0.18;
-        const demanda_kg_anio = aforo * KG_PERSONA_DIA * diasOp;
-        const ahorro_kwh = demanda_kg_anio * (KWH_KG_ANTIGUA - KWH_KG_EFICIENTE);
-        eHielo = ahorro_kwh * precioKwh;
-      } else {
-        // Fallback v3.0-beta: 0.80 EUR/dia fijo si no se conoce aforo.
-        // Preserva goldens del harness mientras el cliente no rellena aforo.
-        eHielo = 0.80 * diasOp;
-      }
-    }
     // === eLava + eInf refactor a kWh × precio_kWh (v3.0-gamma M9, 2026-06-01) ===
     // Antes: cupula 1.0 EUR/dia, sin maquina 0.5 EUR/dia, infusion 0.04 EUR/inf.
     // Ahora: convertidos a kWh equivalentes a 0.28 EUR/kWh referencia. Identico a
@@ -522,23 +526,11 @@
     const CAE_EUR_KWH = 0.10;     // conservador dentro del rango oficial (caedigital 2026)
     const CAE_RETRO_YEARS = 1.5;  // anios transcurridos asumidos en retroactivo
 
-    // Consumo anual del equipo ACTUAL (kWh/anio) por categoria. Para frio y cocina
-    // granular reutilizamos los kwh_X ya calculados arriba. Para hielo, maq_cafe,
+    // Consumo anual del equipo ACTUAL (kWh/anio) por categoria. Para frio, cocina
+    // y hielo granular reutilizamos los kwh_X ya calculados arriba. Para maq_cafe,
     // iluminacion, climatizacion y lavavajillas, derivamos ad-hoc a partir de los
     // mismos parametros que ya alimentan ENERGIA (sin recalcular el motor).
-    let kwh_hielo_consumo;
-    if (maqHielo === 'antigua') {
-      const aforoNumCae = Math.max(0, Number(inputs.aforo) || 0);
-      if (aforoNumCae > 0) {
-        // Demanda × kWh/kg antigua (idem que §2.8 pero solo el consumo, no el delta)
-        kwh_hielo_consumo = aforoNumCae * 0.1 * diasOp * 0.5;
-      } else {
-        // Fallback equivalente al 0.80 EUR/dia fijo en kWh @ 0.28 EUR/kWh
-        kwh_hielo_consumo = (0.80 / 0.28) * diasOp;
-      }
-    } else {
-      kwh_hielo_consumo = 0;
-    }
+    // kwh_hielo_aire y kwh_hielo_agua ya estan disponibles desde el refactor 2026-06-03.
     const kwh_maq_cafe_consumo = (kB[tipoMaq] || 18) * fA * numMaq * diasOp;
     let kwh_iluminacion_consumo;
     if (importeFacturaMensual > 0) {
@@ -578,7 +570,8 @@
       lavavasos:        { kwh: kwh_lavavasos,            vida: 8,  pct: 0.20, precio: 550 },
       montacargas:      { kwh: kwh_montacargas,          vida: 12, pct: 0.25, precio: 5000 },
       gas:              { kwh: kwh_gas,                  vida: 12, pct: 0.25, precio: 2000 },
-      hielo:            { kwh: kwh_hielo_consumo,        vida: 8,  pct: 0.64, precio: 3500 },
+      hielo_aire:       { kwh: kwh_hielo_aire,           vida: 8,  pct: 0.64, precio: 3500 },
+      hielo_agua:       { kwh: kwh_hielo_agua,           vida: 8,  pct: 0.64, precio: 3500 },
       maq_cafe:         { kwh: kwh_maq_cafe_consumo,     vida: 8,  pct: 0.25, precio: 5500 },
       iluminacion:      { kwh: kwh_iluminacion_consumo,  vida: 15, pct: null, precio: 2000 },
       climatizacion:    { kwh: kwh_clima_consumo,        vida: 15, pct: 0.40, precio: 16000 },
@@ -681,7 +674,7 @@
       inversion_total, cuota_renting_mes, ahorro_factura_mes,
       cae_prorrateado_mes, saldo_neto_mes, saldo_neto_5y,
       cae_equipos,
-      kwh_hielo_consumo, kwh_maq_cafe_consumo, kwh_iluminacion_consumo,
+      kwh_hielo_aire, kwh_hielo_agua, kwh_maq_cafe_consumo, kwh_iluminacion_consumo,
       kwh_clima_consumo, kwh_lavavajillas_consumo,
       // Variables derivadas (útiles para diagnosticar tests)
       diasOp, ft, precioCafe, plazoRenting, coefRenting,
@@ -743,7 +736,8 @@
     lavavasos:       'Lavavasos',
     montacargas:     'Montacargas',
     gas:             'Equipos a gas',
-    hielo:           'Maquina de hielo',
+    hielo_aire:      'Maquina de hielo (aire)',
+    hielo_agua:      'Maquina de hielo (agua)',
     maq_cafe:        'Maquina de cafe',
     iluminacion:     'Iluminacion',
     climatizacion:   'Climatizacion',

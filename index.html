@@ -396,9 +396,8 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 </div>
 
 <div class="sub-bloque-title">Lavado y agua</div>
-<div class="row triple">
+<div class="row">
   <div class="field"><label>Lavaplatos (cocina)</label><select id="lavaplatos"><option value="cupula">Cúpula</option><option value="bajo">Bajomostrador</option><option value="lavavasos">Lavavasos</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select></div>
-  <div class="field"><label>Máquina de hielo</label><select id="maq_hielo"><option value="antigua">Antigua</option><option value="nueva">Nueva</option><option value="no">No tiene</option><option value="nosabe">NS / NC</option></select></div>
   <div class="field"><label>Perlizadores</label><select id="perlizadores"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
 </div>
 
@@ -407,6 +406,24 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Lavavasos (nº)</label><input type="number" id="lavavasos_n" placeholder="0 si no tiene" min="0"></div>
   <div class="field"><label>Lavavasos (kW)</label><input type="number" id="lavavasos_kw" placeholder="Ej: 2" step="0.1" min="0"></div>
   <div class="field"><label>Lavavasos (h/día)</label><input type="number" id="lavavasos_h" placeholder="Ej: 8" step="0.5" min="0" max="24"></div>
+</div>
+
+<!-- 2026-06-03 (Jesus): la maquina de hielo pasa a patron n+kW+h, separada en
+     refrigerada por aire vs por agua. Defaults: aire 0,40 kW · 24h; agua 0,28 kW · 24h
+     (la de agua es ~30% mas eficiente electricamente pero gasta agua de red, ~1,68 L/kg
+     hielo; el ahorro adicional al cambiar aire->agua queda pendiente Jesus). El select
+     antigua/nueva/NS-NC desaparece: la antiguedad la declara el auditor en el bloque
+     CAE (checkboxes >5a / renovado<3a por tipo de hielo). -->
+<div class="sub-bloque-title">Máquina de hielo</div>
+<div class="row triple">
+  <div class="field"><label>Hielo aire (nº)</label><input type="number" id="hielo_aire_n" placeholder="0 si no tiene" min="0"></div>
+  <div class="field"><label>Hielo aire (kW)</label><input type="number" id="hielo_aire_kw" placeholder="Ej: 0,4" step="0.05" min="0"></div>
+  <div class="field"><label>Hielo aire (h/día)</label><input type="number" id="hielo_aire_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Hielo agua (nº)</label><input type="number" id="hielo_agua_n" placeholder="0 si no tiene" min="0"></div>
+  <div class="field"><label>Hielo agua (kW)</label><input type="number" id="hielo_agua_kw" placeholder="Ej: 0,28" step="0.05" min="0"></div>
+  <div class="field"><label>Hielo agua (h/día)</label><input type="number" id="hielo_agua_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
 </div>
 
 <div class="row">
@@ -606,11 +623,17 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 </div>
 
 <div class="sub-bloque-title">Hielo y máquina de café</div>
-<div class="cae-row" data-eq="hielo">
-  <span class="cae-name">Máquina de hielo</span>
-  <label class="cae-cb"><input type="checkbox" id="cae_hielo_old" onchange="onCaeChange('hielo','old')"> &gt; 5 años</label>
-  <label class="cae-cb"><input type="checkbox" id="cae_hielo_renew" onchange="onCaeChange('hielo','renew')"> Renovado &lt; 3 a · factura</label>
-  <input type="number" id="cae_hielo_inversion" class="cae-inv" placeholder="3500 €" min="0" step="50">
+<div class="cae-row" data-eq="hielo_aire">
+  <span class="cae-name">Máquina de hielo (aire)</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_hielo_aire_old" onchange="onCaeChange('hielo_aire','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_hielo_aire_renew" onchange="onCaeChange('hielo_aire','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_hielo_aire_inversion" class="cae-inv" placeholder="3500 €" min="0" step="50">
+</div>
+<div class="cae-row" data-eq="hielo_agua">
+  <span class="cae-name">Máquina de hielo (agua)</span>
+  <label class="cae-cb"><input type="checkbox" id="cae_hielo_agua_old" onchange="onCaeChange('hielo_agua','old')"> &gt; 5 años</label>
+  <label class="cae-cb"><input type="checkbox" id="cae_hielo_agua_renew" onchange="onCaeChange('hielo_agua','renew')"> Renovado &lt; 3 a · factura</label>
+  <input type="number" id="cae_hielo_agua_inversion" class="cae-inv" placeholder="3500 €" min="0" step="50">
 </div>
 <div class="cae-row" data-eq="maq_cafe">
   <span class="cae-name">Máquina de café</span>
@@ -750,7 +773,7 @@ function fmt(n){return Math.round(n).toLocaleString('es-ES')+' €'}
    sincronizadas con CAE_CFG y CAE_NOMBRES del motor. Orden fijo.
    Las reglas de disponibilidad (deshabilitar si n=0 etc.) viven en
    actualizarCAEDisponibilidad(); la exclusion mutua en onCaeChange(). */
-const CAE_EQUIPOS_UI = ['botellero','mesa_fria','congelador','nevera','abatidor','camara_conserv','camara_congel','fuegos','freidora','salamandra','mesas_calientes','lavavasos','montacargas','gas','hielo','maq_cafe','iluminacion','climatizacion','lavavajillas'];
+const CAE_EQUIPOS_UI = ['botellero','mesa_fria','congelador','nevera','abatidor','camara_conserv','camara_congel','fuegos','freidora','salamandra','mesas_calientes','lavavasos','montacargas','gas','hielo_aire','hielo_agua','maq_cafe','iluminacion','climatizacion','lavavajillas'];
 
 // Exclusion mutua: marcar old desmarca y deshabilita renew, y viceversa. Defendible
 // para Repsol (no se reclama dos veces sobre el mismo equipo).
@@ -782,7 +805,8 @@ function actualizarCAEDisponibilidad(){
     gas:             function(){return num('cocina_gas_equipos')>0||num('cocina_gas_consumo')>0;},
     lavavasos:       function(){return num('lavavasos_n')>0;},
     montacargas:     function(){return num('montacargas_kw')>0||num('montacargas_horas')>0;},
-    hielo:           function(){var v=val('maq_hielo');return v==='antigua'||v==='nueva';},
+    hielo_aire:      function(){return num('hielo_aire_n')>0;},
+    hielo_agua:      function(){return num('hielo_agua_n')>0;},
     lavavajillas:    function(){var v=val('lavaplatos');return v!=='no'&&v!=='nosabe';},
     maq_cafe:        function(){return true;},
     iluminacion:     function(){return true;},
@@ -967,7 +991,14 @@ const inputs={
   montacargas_kw:num('montacargas_kw'),
   montacargas_horas:num('montacargas_horas'),
   lavaplatos:val('lavaplatos'),
-  maq_hielo:val('maq_hielo'),
+  // 2026-06-03 (reunion Jesus) — hielo aire/agua con patron n+kW+h. Defaults
+  // HIELO_DEFAULTS en el motor: aire 0,40 kW × 24h; agua 0,28 kW × 24h.
+  hielo_aire_n:num('hielo_aire_n'),
+  hielo_aire_kw:num('hielo_aire_kw'),
+  hielo_aire_h:num('hielo_aire_h'),
+  hielo_agua_n:num('hielo_agua_n'),
+  hielo_agua_kw:num('hielo_agua_kw'),
+  hielo_agua_h:num('hielo_agua_h'),
   perlizadores:val('perlizadores'),
   tratamiento_agua:val('tratamiento_agua'),
   manual_ops:val('manual_ops'),
@@ -1052,7 +1083,7 @@ toggleCocinaGas();
 // §2.4 CAEs: listeners sobre los inputs cuyo valor activa/desactiva los checkboxes
 // CAE. Cualquier cambio en cantidades, selects de equipo o tipo de lavavajillas
 // re-evalua la disponibilidad y desmarca lo que ya no aplica.
-['botelleros_n','mesas_frias_n','congeladores_n','neveras_n','abatidor_n','camaras_conserv','camaras_congel','cocina_fuegos','cocina_freidoras_n','salamandra_n','mesas_calientes_n','cocina_gas_equipos','cocina_gas_consumo','lavavasos_n','montacargas_kw','montacargas_horas','maq_hielo','lavaplatos'].forEach(function(id){
+['botelleros_n','mesas_frias_n','congeladores_n','neveras_n','abatidor_n','camaras_conserv','camaras_congel','cocina_fuegos','cocina_freidoras_n','salamandra_n','mesas_calientes_n','cocina_gas_equipos','cocina_gas_consumo','lavavasos_n','montacargas_kw','montacargas_horas','hielo_aire_n','hielo_agua_n','lavaplatos'].forEach(function(id){
   var el2=document.getElementById(id);
   if(!el2) return;
   el2.addEventListener('input',actualizarCAEDisponibilidad);
