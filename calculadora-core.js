@@ -45,7 +45,6 @@
     const tipoMaq = inputs.tipo_maquina;
     const numMaq = Math.max(1, inputs.num_maquinas);
     const antiguedad = inputs.antiguedad_maq;
-    const aislamiento = inputs.aislamiento;
     const tecnicaLeche = inputs.tecnica_leche;
     const dosificacion = inputs.dosificacion;
     const azucar = inputs.azucar;
@@ -100,38 +99,30 @@
       eMaq -= (7 - diasSem) * 52 * 2 * precioKwh * numMaq;
       eMaq = Math.max(0, eMaq);
     }
-    // === eAisl refactor a kWh × precio_kWh (v3.0-gamma M9, 2026-06-01) ===
-    // Antes: 1.0 EUR/dia × numMaq × diasOp (fijo, sin sensibilidad al precio_kWh).
-    // Ahora: 1/0.28 = 3.5714 kWh/dia × numMaq × diasOp × precio_kWh.
-    // A 0.28 EUR/kWh el resultado es identico (no rompe goldens). Si el cliente
-    // cambia precio_kWh, el ahorro se ajusta linealmente como pidio Jesus.
-    const KWH_AISL_DIA = 1.0 / 0.28;  // 3.5714 kWh/dia
-    let eAisl = (aislamiento === 'no' || aislamiento === 'nosabe') ? KWH_AISL_DIA * numMaq * diasOp * precioKwh : 0;
-    // === eApagado (v3.0-gamma M8, §2.6 Apagado nocturno + chaqueta termica) ===
-    // Dos medidas independientes con cifras del doc Jesus + plan §2.6:
-    //   1. Apagado nocturno (instalar temporizador ~20 EUR): si la maquina queda
-    //      encendida 24h y el local cierra >=10h/dia, ahorrar el consumo nocturno
-    //      = kN[tipoMaq] × horas_cerrado/24 × numMaq × diasOp × precio_kWh.
-    //   2. Chaqueta termica en la caldera (10-15 EUR): reduce 22% del consumo en
-    //      horas activas. Si ademas se apaga, las "horas activas" son horasDia;
-    //      si no se apaga, son 24h. Conservador 22% (rango 20-25% Jesus).
+    // === eAisl unificada con chaqueta termica (decision Jesus reunion 2026-06-03) ===
+    // Jesus aclaro que "aislamiento de la caldera" y "chaqueta termica de la caldera"
+    // son lo mismo conceptualmente. Antes habia dos inputs (aislamiento + maquina_chaqueta)
+    // y dos formulas independientes (eAisl + eApagado.chaqueta) que se sumaban; doble
+    // computo del mismo concepto fisico. Ahora un unico input maquina_chaqueta dispara
+    // la formula eAisl, mas conservadora y trazable al doc Jesus de 52 paginas
+    // (1,0 EUR/dia x numMaq x diasOp, refactorizada a kWh para sensibilidad al precio).
     //
-    // Defensibilidad Repsol: solo se reclama ahorro si el cliente confirma 'no'.
-    // 'nosabe' = no se asume ahorro (no inflar cifras).
+    // Formula vigente:
+    //   3.5714 kWh/dia × numMaq × diasOp × precio_kWh = 308 EUR/anio a 0.28 EUR/kWh.
+    const KWH_AISL_DIA = 1.0 / 0.28;  // 3.5714 kWh/dia
+    const chaqueta = inputs.maquina_chaqueta;  // 'si' | 'no' | 'nosabe'
+    let eAisl = (chaqueta === 'no' || chaqueta === 'nosabe') ? KWH_AISL_DIA * numMaq * diasOp * precioKwh : 0;
+    // === eApagado nocturno (v3.0-gamma M8 §2.6; sub-componente chaqueta eliminado 2026-06-03) ===
+    // Instalar temporizador (~20 EUR) ahorra el consumo nocturno cuando la maquina queda
+    // encendida 24h y el local cierra >=10h/dia:
+    //   eApagado = kN[tipoMaq] × horas_cerrado/24 × numMaq × diasOp × precio_kWh.
+    // Solo se reclama ahorro si el cliente confirma 'no'; 'nosabe' no infla cifras.
     const apagadoNoct = inputs.maquina_apagado;   // 'si' | 'no' | 'nosabe'
-    const chaqueta    = inputs.maquina_chaqueta;  // 'si' | 'no' | 'nosabe'
     const knMaq = kN[tipoMaq] || 6;                // kWh/dia referencia maquina nueva
     const horasCerrado = Math.max(0, 24 - horasDia);
-    const PCT_CHAQUETA = 0.22;
     let eApagado = 0;
     if (apagadoNoct === 'no' && horasCerrado >= 10) {
-      eApagado += knMaq * (horasCerrado / 24) * numMaq * diasOp * precioKwh;
-    }
-    if (chaqueta === 'no') {
-      const horas_activas_pct = (apagadoNoct === 'no' && horasCerrado >= 10)
-        ? (horasDia / 24)
-        : 1.0;
-      eApagado += knMaq * horas_activas_pct * PCT_CHAQUETA * numMaq * diasOp * precioKwh;
+      eApagado = knMaq * (horasCerrado / 24) * numMaq * diasOp * precioKwh;
     }
     // eElec ELIMINADO tras reunion Jesus 2026-05-29 (veredicto CSV fila 25: "NADA!").
     // La formula `cafes x 1,5 x 12 x 0,20` era inventada, sin justificacion en su doc.

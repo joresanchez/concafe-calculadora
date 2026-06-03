@@ -464,12 +464,11 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="field"><label>Nº de máquinas</label><input type="number" id="num_maquinas" value="1" min="1" max="5"></div>
   <div class="field"><label>Antigüedad de máquina</label><select id="antiguedad_maq"><option value="10">&gt;10 años</option><option value="7">5-10 años</option><option value="3" selected>2-5 años</option><option value="1">&lt;2 años</option></select></div>
 </div>
-<div class="row triple">
-  <div class="field"><label>Aislamiento de la caldera</label><select id="aislamiento"><option value="no">No</option><option value="si">Sí</option><option value="nosabe">NS / NC</option></select></div>
-  <!-- §2.6 (v3.0-gamma M8) — apagado nocturno + chaqueta termica. Si la maquina queda 24h
-       encendida y el local cierra >=10h, instalar temporizador (20 EUR) ahorra el consumo
-       nocturno. Chaqueta termica (10-15 EUR) reduce 22% en horas activas. Ahorro ~700 EUR/anio
-       en escenario tipo. -->
+<!-- 2026-06-03 (Jesus): "aislamiento" y "chaqueta termica de la caldera" son el mismo
+     concepto fisico (Jesus dixit en reunion). Unificados en un unico input
+     maquina_chaqueta que ahora dispara la formula eAisl en el motor. Antes la doble
+     entrada generaba doble computo. -->
+<div class="row">
   <div class="field"><label>¿Se apaga la máquina por la noche?</label><select id="maquina_apagado"><option value="">Seleccionar...</option><option value="si">Sí</option><option value="no">No</option><option value="nosabe">NS / NC</option></select></div>
   <div class="field"><label>¿Tiene chaqueta térmica en la caldera?</label><select id="maquina_chaqueta"><option value="">Seleccionar...</option><option value="si">Sí</option><option value="no">No</option><option value="nosabe">NS / NC</option></select></div>
 </div>
@@ -890,7 +889,6 @@ const inputs={
   tipo_maquina:val('tipo_maquina'),
   num_maquinas:num('num_maquinas'),
   antiguedad_maq:num('antiguedad_maq'),
-  aislamiento:val('aislamiento'),
   maquina_apagado:val('maquina_apagado'),
   maquina_chaqueta:val('maquina_chaqueta'),
   tecnica_leche:val('tecnica_leche'),
