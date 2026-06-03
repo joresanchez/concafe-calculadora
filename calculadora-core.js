@@ -38,10 +38,6 @@
     const diasOp = Math.round(diasSem * 51.4);
     const modeloAdq = inputs.modelo_adq;
 
-    let precioCafe = Math.max(0, inputs.precio_cafe || 0);
-    if (!precioCafe && modeloAdq === 'cesion') precioCafe = 28;
-    if (!precioCafe && modeloAdq !== 'cesion') precioCafe = 21;
-
     const tipoMaq = inputs.tipo_maquina;
     const numMaq = Math.max(1, inputs.num_maquinas);
     const antiguedad = inputs.antiguedad_maq;
@@ -78,11 +74,14 @@
     // --- Factor de tamaño (volumen del local) ---
     const ft = cafes <= 100 ? 1.0 : (cafes <= 150 ? 1.2 : (cafes <= 220 ? 1.5 : 2.0));
 
-    // --- Financiero (solo cesión: ahorro por bajar precio del café) ---
+    // --- Financiero (solo cesion: ahorro al dejar el modelo cesion) ---
+    // Decision Jesus reunion 2026-06-03: la cesion implica sobrecoste fijo de
+    // 4 EUR/kg respecto al precio mayorista del cafe. Al pasar a Propia/Renting
+    // ese sobrecoste desaparece. Formula simplificada (ya no se pide precio_cafe
+    // al cliente). Ratio operativo 110 cafes/kg (mismo que inverso T.4 Hito F).
     let fin = 0;
     if (modeloAdq === 'cesion') {
-      const k = (cafes * diasOp) / 120;
-      fin = k * Math.max(0, precioCafe - 21);
+      fin = (cafes * diasOp / 110) * 4;
     }
 
     // --- Energía ---
@@ -401,8 +400,19 @@
     const ENERGIA = eMaq + eAisl + eApagado + eElec + eLuz + eClima + eFrio + ePerl + eAnti + eHielo + eLava + eInf;
 
     // --- Insumos ---
-    const pctL = 0.70;
-    let iL = (tecnicaLeche === 'calienta' || tecnicaLeche === 'nosabe') ? cafes * pctL * 0.06 * 0.95 * diasOp : 0;
+    const pctL = 0.70;  // % cafes con leche (usado en iE; ya no en iL post 2026-06-03)
+    // iL: sobreconsumo de leche al calentar vs texturizar (decision Jesus 2026-06-03).
+    // Ahorro fijo de 0,30 EUR por litro de leche utilizada (antes: 70 % cafes con
+    // leche x 0,06 L sobreconsumo x 0,95 EUR/L). Si el auditor declara litros_leche_dia,
+    // se usa ese valor; si no, se estima desde cafes con el ratio 9 L = 110 cafes
+    // (mismo ratio inverso que el Hito F).
+    const _litrosLecheInput = Math.max(0, Number(inputs.litros_leche_dia) || 0);
+    const litrosLecheDia = _litrosLecheInput > 0
+      ? _litrosLecheInput
+      : (cafes > 0 ? (cafes * 9 / 110) : 0);
+    let iL = (tecnicaLeche === 'calienta' || tecnicaLeche === 'nosabe')
+      ? litrosLecheDia * 0.30 * diasOp
+      : 0;
     let iG = dosificacion === 'ojo' ? cafes * 0.0015 * 25 * diasOp : 0;
     let iA = azucar === 'libre' ? cafes * 0.02 * diasOp : 0;
     // iIn (insourcing de jarabes/chai) ELIMINADO en v3.0-gamma.1 (2026-06-01, J1).
@@ -677,7 +687,7 @@
       kwh_hielo_aire, kwh_hielo_agua, kwh_maq_cafe_consumo, kwh_iluminacion_consumo,
       kwh_clima_consumo, kwh_lavavajillas_consumo,
       // Variables derivadas (útiles para diagnosticar tests)
-      diasOp, ft, precioCafe, plazoRenting, coefRenting,
+      diasOp, ft, plazoRenting, coefRenting,
     };
   }
 

@@ -487,9 +487,11 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 <!-- BLOQUE 6 (era B) — Maquinaria de café. Renumerado y movido al final con el resto de cafe/insumos/operativa. -->
 <div class="bloque">
 <div class="bloque-title"><span class="bloque-num">6</span>Maquinaria de café</div>
+<!-- 2026-06-03 (Jesus): formula fin simplificada a (cafes/110) x 4 EUR/kg solo en
+     Cesion. Quitamos el input precio_cafe del UI (el sobrecoste de cesion ya es
+     fijo, no hace falta preguntarle al cliente). -->
 <div class="row">
   <div class="field"><label>Modelo de adquisición</label><select id="modelo_adq"><option value="cesion">Cesión</option><option value="propia">Propia</option><option value="renting">Renting</option></select></div>
-  <div class="field"><label>Precio café actual (€/kg)</label><input type="number" id="precio_cafe" placeholder="Ej: 28" step="0.5" min="0"><div class="hint">Vacío = cesión 28€, propia 21€</div></div>
 </div>
 <div class="row triple">
   <div class="field"><label>Tipo de máquina</label><select id="tipo_maquina"><option value="compacta">1 Grupo (Compacta)</option><option value="2g" selected>2 Grupos</option><option value="3g">3 Grupos</option><option value="multi">Multiboiler</option></select></div>
@@ -925,11 +927,14 @@ const inputs={
   // motor siga recibiendo un numero (los tests pasan inputs directos al motor
   // sin pasar por aqui, asi que goldens del harness intactos).
   infusiones_dia:(function(){var u=num('infusiones_dia');return u>0?u:(cafesDiaFinal>0?Math.round(cafesDiaFinal*0.20):0);})(),
+  // T6 (2026-06-03, reunion Jesus): pasamos litros_leche_dia al motor para que
+  // calcule iL = litros x 0.30 x diasOp si calienta/nosabe. Si el campo esta
+  // vacio (num=0), el motor estima litros desde cafes con el ratio 9 L = 110 cafes.
+  litros_leche_dia:num('litros_leche_dia'),
   dias_semana:num('dias_semana'),
   dias_cerrados_tipo:val('dias_cerrados_tipo'),
   horas_dia:num('horas_dia'),
   modelo_adq:val('modelo_adq'),
-  precio_cafe:num('precio_cafe'),
   tipo_maquina:val('tipo_maquina'),
   num_maquinas:num('num_maquinas'),
   antiguedad_maq:num('antiguedad_maq'),
