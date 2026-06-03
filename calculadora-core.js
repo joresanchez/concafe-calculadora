@@ -465,51 +465,19 @@
     const hMax = Math.round(hM * 1.10);
     const hSeg = HARD * 0.90;
 
-    // --- Semáforo (idéntico a v2.5; doble condición ratio + cash flow) ---
-    let color, label, sub2, mc, msg, ratio;
-    if (honorarios === 0) {
-      ratio = null;
-      if (nH >= 0) {
-        color = 'sem-verde'; label = 'VIABLE (SIN GARANTÍA)';
-        sub2 = 'Sin honorarios. No hay riesgo de devolución.';
-        mc = 'msg-verde';
-        msg = 'No se cobran honorarios. Flujo de caja positivo.';
-      } else {
-        color = 'sem-amarillo'; label = 'CASH FLOW NEGATIVO';
-        sub2 = 'La cuota del servicio supera el ahorro estimado.';
-        mc = 'msg-amarillo';
-        msg = `Sin honorarios, pero la cuota (${fmt(Math.round(cuota))}/mes) supera el ahorro (${fmt(Math.round(hM))}/mes). Reduce el precio de la máquina o alarga los plazos.`;
-      }
+    // --- Semáforo simplificado (decision Jesus reunion 2026-06-03) ---
+    // Criterio unico: HARD >= honorarios -> GARANTIA CONCEDIDA (verde).
+    // Si HARD < honorarios -> GARANTIA NO CONCEDIDA (rojo).
+    // Si honorarios = 0 -> CONCEDIDA por defecto (no hay nada que cubrir).
+    // Eliminado el amarillo intermedio, sub2 (texto secundario gris) y msg-comercial
+    // (bloque explicativo extenso). El ratio se sigue calculando como dato
+    // informativo pero ya no determina el color.
+    const ratio = honorarios > 0 ? (hSeg / honorarios) : null;
+    let color, label;
+    if (honorarios === 0 || HARD >= honorarios) {
+      color = 'sem-verde'; label = 'GARANTÍA CONCEDIDA';
     } else {
-      const r = hSeg / honorarios;
-      ratio = r;
-      const cf = nH > 0;
-      if (r >= 1.5 && cf) {
-        color = 'sem-verde'; label = 'GARANTÍA RECOMENDADA';
-        sub2 = `Ratio: ${r.toFixed(1)}x · Cash flow: +${fmt(Math.round(nH))}/mes`;
-        mc = 'msg-verde';
-        msg = 'Firma la garantía. Los ahorros directos cubren sobradamente nuestros honorarios y el flujo de caja es positivo.';
-      } else if (r >= 1.0 && cf) {
-        color = 'sem-amarillo'; label = 'GARANTÍA CON CONDICIONES';
-        sub2 = `Ratio: ${r.toFixed(1)}x · Cash flow: +${fmt(Math.round(nH))}/mes`;
-        mc = 'msg-amarillo';
-        msg = `Garantía posible con cumplimiento estricto de la cláusula 8. Baja los honorarios a ${fmt(Math.round(hSeg / 1.5))} para que el resultado sea verde.`;
-      } else if (r >= 1.0 && !cf) {
-        color = 'sem-amarillo'; label = 'BUENOS RATIOS CON CASH FLOW NEGATIVO';
-        sub2 = `Ratio: ${r.toFixed(1)}x · Cash flow: ${fmt(Math.round(nH))}/mes`;
-        mc = 'msg-amarillo';
-        msg = `El ratio cubre la garantía, pero el cliente pierde ${fmt(Math.abs(Math.round(nH)))}/mes. Reduce la máquina o alarga los plazos.`;
-      } else if (!cf) {
-        color = 'sem-rojo'; label = 'SIN GARANTÍA';
-        sub2 = `Ratio: ${r.toFixed(1)}x · Cash flow: ${fmt(Math.round(nH))}/mes`;
-        mc = 'msg-rojo';
-        msg = `No podemos ofrecer la garantía. Bajamos los honorarios a ${fmt(Math.round(hSeg / 1.5))} y reducimos la máquina.`;
-      } else {
-        color = 'sem-rojo'; label = 'SIN GARANTÍA';
-        sub2 = `Ratio: ${r.toFixed(1)}x · Cash flow: +${fmt(Math.round(nH))}/mes`;
-        mc = 'msg-rojo';
-        msg = `Los ahorros directos (${fmt(Math.round(HARD))}/año) no cubren los honorarios. Vendemos sin garantía o bajamos precios a ${fmt(Math.round(hSeg / 1.5))}.`;
-      }
+      color = 'sem-rojo'; label = 'GARANTÍA NO CONCEDIDA';
     }
 
     // ========================================================================
@@ -656,7 +624,7 @@
     return {
       ok: true,
       // Resultado primario (semáforo)
-      color, label, sub2, mc, msg, ratio,
+      color, label, ratio,
       // Resultados financieros mensuales
       hM, sM, nH, nT, cuota,
       // Agregados anuales

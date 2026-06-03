@@ -715,7 +715,6 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   <div class="semaforo">
     <div class="sem-circle" id="sem-circle"></div>
     <div class="sem-label" id="sem-label"></div>
-    <div class="sem-sub" id="sem-sub"></div>
   </div>
   <div class="sep"></div>
   <div style="text-align:center;font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:500;color:#888;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Estimación</div>
@@ -728,7 +727,6 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
   </table>
   <button class="desglose-btn" onclick="toggleDesglose()">Ver desglose por bloques</button>
   <div class="desglose" id="desglose"></div>
-  <div id="msg-comercial" class="msg-comercial"></div>
   <button class="btn-reset" onclick="resetear()">Nueva consulta</button>
 </div>
 
@@ -1047,8 +1045,7 @@ const el=id=>document.getElementById(id);
 el('output').style.display='block';
 el('sem-circle').className='sem-circle '+r.color;
 el('sem-label').textContent=r.label;
-el('sem-label').style.color=r.color==='sem-verde'?'var(--green)':(r.color==='sem-amarillo'?'var(--yellow)':'var(--red)');
-el('sem-sub').textContent=r.sub2;
+el('sem-label').style.color=r.color==='sem-verde'?'var(--green)':'var(--red)';
 el('out-hard').innerHTML=`+${fmt(Math.round(r.hM))} <span class="rango">/ mes (${fmt(r.hMin)} - ${fmt(r.hMax)})</span>`;
 el('out-cuota').innerHTML=`-${fmt(Math.round(r.cuota))} <span class="rango">/ mes (${r.plazoRenting}m)</span>`;
 el('out-neto').innerHTML=`${r.nH>=0?'+':''}${fmt(Math.round(r.nH))} <span class="rango">/ mes</span>`;
@@ -1066,9 +1063,6 @@ el('desglose').innerHTML=`
 <div class="desglose-line hard-total"><span>Total ahorros directos</span><span>${fmt(Math.round(r.HARD))}/año</span></div>
 <div class="desglose-line soft"><span>Ahorros indirectos</span><span>${fmt(Math.round(r.SOFT))}/año</span></div>
 <div class="desglose-line grand"><span>Impacto total</span><span>${fmt(Math.round(r.HARD+r.SOFT))}/año</span></div>`;
-
-el('msg-comercial').className='msg-comercial '+r.mc;
-el('msg-comercial').textContent=r.msg;
 
 // §2.4 CAEs (v3.0-gamma final): render condicional. Si nadie marco nada en el
 // bloque 9, renderCaeOutput oculta el cuadro y la calculadora queda como auditoria
