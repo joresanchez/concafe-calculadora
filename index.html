@@ -298,10 +298,21 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
 <!-- Refrigeracion. Las camaras (conservacion + congelacion) son las categorias mas grandes;
      botelleros, mesas frias, congeladores, neveras y abatidor son los equipos individuales.
      Todos entran al sumatorio granular eFrio v3.0-gamma con cifras IDAE. -->
+<!-- 2026-06-03 (Jesus): camaras conservacion + congelacion pasan a patron uniforme
+     n+kW+h como botelleros / mesas frias / etc. Si el cliente solo da el numero,
+     el motor aplica defaults conservadores (FRIO_DEFAULTS: 0,50 kW conserv,
+     1,00 kW congel, 24h ambas). Cambio value=1 -> placeholder=0: cualquier equipo
+     es 0 por defecto a menos que el auditor lo declare. -->
 <div class="sub-bloque-title">Refrigeración (cámaras)</div>
-<div class="row">
-  <div class="field"><label>Cámaras de conservación</label><input type="number" id="camaras_conserv" value="1" min="0" max="10"><div class="hint">Número de cámaras grandes para refrigerados (no neveras pequeñas)</div></div>
-  <div class="field"><label>Cámaras de congelación</label><input type="number" id="camaras_congel" value="0" min="0" max="10"><div class="hint">Número de cámaras grandes para congelados</div></div>
+<div class="row triple">
+  <div class="field"><label>Cámaras de conservación (nº)</label><input type="number" id="camaras_conserv" placeholder="0" min="0" max="10"></div>
+  <div class="field"><label>Cámaras de conservación (kW)</label><input type="number" id="camaras_conserv_kw" placeholder="Ej: 0,5" step="0.1" min="0"></div>
+  <div class="field"><label>Cámaras de conservación (h/día)</label><input type="number" id="camaras_conserv_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
+</div>
+<div class="row triple">
+  <div class="field"><label>Cámaras de congelación (nº)</label><input type="number" id="camaras_congel" placeholder="0" min="0" max="10"></div>
+  <div class="field"><label>Cámaras de congelación (kW)</label><input type="number" id="camaras_congel_kw" placeholder="Ej: 1" step="0.1" min="0"></div>
+  <div class="field"><label>Cámaras de congelación (h/día)</label><input type="number" id="camaras_congel_h" placeholder="Ej: 24" step="0.5" min="0" max="24"></div>
 </div>
 
 <!-- Frio detallado por categoria (n + kW + h/dia por unidad). Si el cliente solo da el numero,
@@ -909,7 +920,11 @@ const inputs={
   // refactor eHielo basado en demanda real (kg/persona/dia × diasOp).
   aforo:num('aforo'),
   camaras_conserv:num('camaras_conserv'),
+  camaras_conserv_kw:num('camaras_conserv_kw'),
+  camaras_conserv_h:num('camaras_conserv_h'),
   camaras_congel:num('camaras_congel'),
+  camaras_congel_kw:num('camaras_congel_kw'),
+  camaras_congel_h:num('camaras_congel_h'),
   // §2.1 (v3.0-gamma 2026-06-01) — Frio granular: inputs por categoria n+kW+h/dia.
   // Si kW o h vienen vacios (NaN -> 0), el motor aplica el default conservador de
   // FRIO_DEFAULTS (kW promedio considera duty cycle, no potencia pico).
