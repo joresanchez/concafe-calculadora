@@ -462,12 +462,12 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
      Hint dinamico `hint_cafes_dia` se actualiza al calcular. -->
 <div class="bloque">
 <div class="bloque-title"><span class="bloque-num">5</span>Café y volumen</div>
+<!-- 2026-06-03 (Jesus): cafes_dia es el PRIMER campo de la seccion. Al rellenarlo,
+     litros_leche_dia e infusiones_dia muestran su valor calculado como placeholder
+     gris (ratio 9 L ≈ 110 cafes para leche, ~20 % cafes para infusiones). Si el
+     usuario sobreescribe, su valor prevalece. -->
 <div class="row">
-  <div class="field"><label>Litros de leche/día</label><input type="number" id="litros_leche_dia" placeholder="Ej: 12" step="0.5" min="0"><div class="hint">Si lo sabe por semana, dividir entre 7</div></div>
-  <div class="field"><label>Infusiones al día</label><input type="number" id="infusiones_dia" placeholder="Ej: 30" min="0" value="0"></div>
-</div>
-<div class="row">
-  <div class="field"><label>Cafés al día</label><input type="number" id="cafes_dia" placeholder="Ej: 150" min="0"><div class="hint" id="hint_cafes_dia">Opcional. Si lo conoces, mejora la precisión de los ahorros por consumo (leche, café en grano, azúcar) y la velocidad de servicio. Si lo dejas vacío y rellenas litros de leche, lo estimamos. Si no, la calculadora corre solo con la energía de los equipos.</div></div>
+  <div class="field"><label>Cafés al día</label><input type="number" id="cafes_dia" placeholder="Ej: 150" min="0" oninput="actualizarAutoCafes()"><div class="hint" id="hint_cafes_dia">Opcional. Si lo conoces, mejora la precisión de los ahorros por consumo (leche, café en grano, azúcar) y la velocidad de servicio. Si lo dejas vacío y rellenas litros de leche, lo estimamos. Si no, la calculadora corre solo con la energía de los equipos.</div></div>
   <div class="field"><label>Tipos de leche que usa</label>
     <div class="checkbox-group">
       <label><input type="checkbox" id="leche_entera" value="entera"> Entera</label>
@@ -477,6 +477,10 @@ h1,h2,h3,.bloque-title,.sem-label{font-family:'Poppins',sans-serif}
       <label><input type="checkbox" id="leche_vegetales" value="vegetales"> Vegetales</label>
     </div>
   </div>
+</div>
+<div class="row">
+  <div class="field"><label>Litros de leche/día</label><input type="number" id="litros_leche_dia" placeholder="Ej: 12" step="0.5" min="0"><div class="hint" id="hint_litros_leche">Si rellenas cafés/día lo estimamos (9 L ≈ 110 cafés). Si lo sabes por semana, dividir entre 7.</div></div>
+  <div class="field"><label>Infusiones al día</label><input type="number" id="infusiones_dia" placeholder="Ej: 30" min="0"><div class="hint" id="hint_infusiones">Si rellenas cafés/día lo estimamos (~20 % de cafés).</div></div>
 </div>
 </div>
 
@@ -915,7 +919,12 @@ if(_hintEl){
 
 const inputs={
   cafes_dia:cafesDiaFinal,
-  infusiones_dia:num('infusiones_dia'),
+  // T4 (2026-06-03, reunion Jesus): si infusiones_dia esta vacio (num=0) y hay
+  // cafes, se calcula como 20 % de cafes (cifra Jesus). Si el usuario teclea
+  // su propio valor, prevalece. La estimacion vive en el wrapper para que el
+  // motor siga recibiendo un numero (los tests pasan inputs directos al motor
+  // sin pasar por aqui, asi que goldens del harness intactos).
+  infusiones_dia:(function(){var u=num('infusiones_dia');return u>0?u:(cafesDiaFinal>0?Math.round(cafesDiaFinal*0.20):0);})(),
   dias_semana:num('dias_semana'),
   dias_cerrados_tipo:val('dias_cerrados_tipo'),
   horas_dia:num('horas_dia'),
@@ -1075,10 +1084,30 @@ function toggleDiasCerrados(){const f=document.getElementById('field_dias_cerrad
 function toggleContratoRestante(){const f=document.getElementById('field_contrato_restante');const v=document.getElementById('regimen_local').value;f.classList.toggle('field-hidden',v!=='alquiler')}
 function toggleNumCamarasVig(){const f=document.getElementById('field_num_camaras_vig');const v=document.getElementById('camaras_vigilancia').value;f.classList.toggle('field-hidden',v!=='si')}
 function toggleCocinaGas(){const f=document.getElementById('row_cocina_gas');const v=document.getElementById('cocina_tipo').value;f.classList.toggle('field-hidden',!(v==='gas'||v==='mixta'))}
+// T4 (2026-06-03, reunion Jesus): al teclear cafes_dia, actualizamos los placeholders
+// gris de litros_leche_dia (ratio 9 L ≈ 110 cafes) e infusiones_dia (20 % de cafes).
+// Si el usuario sobreescribe, su valor prevalece. Si los deja vacios, el wrapper
+// inyecta los valores calculados al motor (solo infusiones, litros_leche no entra
+// al motor — sigue siendo solo visual; el inverso litros→cafes vive en T.4 Hito F).
+function actualizarAutoCafes(){
+  const c=Math.max(0,Number(document.getElementById('cafes_dia').value)||0);
+  const litrosEl=document.getElementById('litros_leche_dia');
+  const infusEl=document.getElementById('infusiones_dia');
+  if(c>0){
+    const litrosEst=(c*9/110).toFixed(1).replace('.',',');
+    const infusEst=Math.round(c*0.20);
+    litrosEl.placeholder='Auto: '+litrosEst+' L';
+    infusEl.placeholder='Auto: '+infusEst;
+  } else {
+    litrosEl.placeholder='Ej: 12';
+    infusEl.placeholder='Ej: 30';
+  }
+}
 toggleDiasCerrados();
 toggleContratoRestante();
 toggleNumCamarasVig();
 toggleCocinaGas();
+actualizarAutoCafes();
 
 // §2.4 CAEs: listeners sobre los inputs cuyo valor activa/desactiva los checkboxes
 // CAE. Cualquier cambio en cantidades, selects de equipo o tipo de lavavajillas
